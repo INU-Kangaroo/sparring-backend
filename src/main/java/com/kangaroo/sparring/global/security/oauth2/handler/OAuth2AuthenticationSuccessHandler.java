@@ -1,7 +1,7 @@
 package com.kangaroo.sparring.global.security.oauth2.handler;
 
 import com.kangaroo.sparring.global.security.jwt.JwtUtil;
-import com.kangaroo.sparring.global.security.oauth2.user.CustomOAuth2User;
+import com.kangaroo.sparring.global.security.principal.CurrentUser;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,11 +33,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
 
-        CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
+        CurrentUser currentUser = (CurrentUser) authentication.getPrincipal();
 
-        Long userId = oAuth2User.getUserId();
-        String email = oAuth2User.getEmail();
-        String username = oAuth2User.getUsername();
+        Long userId = currentUser.getUserId();
+        String email = currentUser.getEmail();
+        String username = currentUser.getDisplayName();
 
         log.info("OAuth2 Login Success - UserId: {}, Email: {}, Username: {}", userId, email, username);
 

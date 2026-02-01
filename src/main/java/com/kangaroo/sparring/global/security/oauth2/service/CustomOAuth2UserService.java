@@ -1,8 +1,9 @@
 package com.kangaroo.sparring.global.security.oauth2.service;
 
 import com.kangaroo.sparring.domain.user.entity.User;
-import com.kangaroo.sparring.domain.user.service.OAuth2UserService; // ← 이 import 추가
-import com.kangaroo.sparring.global.security.oauth2.user.CustomOAuth2User;
+import com.kangaroo.sparring.domain.user.service.OAuth2UserService;
+import com.kangaroo.sparring.global.security.principal.CurrentUser;
+import com.kangaroo.sparring.global.security.principal.SecurityAuthorities;
 import com.kangaroo.sparring.global.security.oauth2.provider.GoogleOAuth2UserInfo;
 import com.kangaroo.sparring.global.security.oauth2.provider.KakaoOAuth2UserInfo;
 import com.kangaroo.sparring.global.security.oauth2.user.OAuth2UserInfo;
@@ -15,7 +16,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.Map;
 
 @Slf4j
@@ -42,11 +42,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         OAuth2UserInfo oAuth2UserInfo = createOAuth2UserInfo(registrationId, oAuth2User.getAttributes());
         User user = oauth2UserService.processOAuth2User(oAuth2UserInfo);
 
-        return new CustomOAuth2User(
+        return CurrentUser.fromOAuth2(
                 user.getId(),
                 user.getEmail(),
                 user.getUsername(),
-                Collections.emptyList(),
+                SecurityAuthorities.userAuthorities(),
                 oAuth2User.getAttributes(),
                 userNameAttributeName
         );

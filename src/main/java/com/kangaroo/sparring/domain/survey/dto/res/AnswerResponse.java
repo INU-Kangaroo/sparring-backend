@@ -26,7 +26,7 @@ public class AnswerResponse {
     @Schema(description = "질문 내용")
     private String questionText;
     @Schema(description = "응답 값")
-    private String answerText;
+    private String value;
 
     public static AnswerResponse from(Answer answer) {
         return AnswerResponse.builder()
@@ -34,7 +34,7 @@ public class AnswerResponse {
                 .questionId(answer.getQuestion().getId())
                 .questionKey(answer.getQuestion().getQuestionKey())
                 .questionText(answer.getQuestion().getQuestionText())
-                .answerText(answer.getAnswerText())
+                .value(answer.getAnswerText())
                 .build();
     }
 }

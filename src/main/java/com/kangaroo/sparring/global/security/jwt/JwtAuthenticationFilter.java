@@ -2,15 +2,17 @@ package com.kangaroo.sparring.global.security.jwt;
 
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kangaroo.sparring.global.security.principal.CurrentUser;
+import com.kangaroo.sparring.global.security.principal.SecurityAuthorities;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -32,7 +34,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JwtAuthenticationEntryPoint authenticationEntryPoint;
+    private final JwtAccessDeniedHandler accessDeniedHandler;
 
     @Override
     protected void doFilterInternal(
@@ -46,12 +49,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             User user = userRepository.findById(userId).orElse(null);
 
             if (user == null) {
-                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED", "인증이 필요합니다.");
+                authenticationEntryPoint.commence(
+                        request,
+                        response,
+                        new InsufficientAuthenticationException("사용자를 찾을 수 없습니다.")
+                );
                 return;
             }
 
             if (!user.getIsActive() || user.isDeleted()) {
-                writeError(response, HttpServletResponse.SC_FORBIDDEN, "FORBIDDEN", "접근 권한이 없습니다.");
+                accessDeniedHandler.handle(
+                        request,
+                        response,
+                        new AccessDeniedException("비활성 또는 삭제된 사용자입니다.")
+                );
                 return;
             }
 
@@ -71,27 +82,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private UsernamePasswordAuthenticationToken buildAuthentication(User user, HttpServletRequest request) {
-        CustomUserPrincipal principal = new CustomUserPrincipal(
+        CurrentUser principal = CurrentUser.fromJwt(
                 user.getId(),
                 user.getEmail(),
                 user.getPassword(),
-                org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
-                        .password(user.getPassword())
-                        .roles("USER")
-                        .build()
-                        .getAuthorities()
+                SecurityAuthorities.userAuthorities()
         );
 
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         return authentication;
-    }
-
-    private void writeError(HttpServletResponse response, int status, String code, String message) throws IOException {
-        response.setStatus(status);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), java.util.Map.of("code", code, "message", message));
     }
 }

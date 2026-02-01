@@ -9,9 +9,12 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 @Entity
@@ -21,6 +24,9 @@ import java.util.Locale;
 @AllArgsConstructor
 @Builder
 public class HealthProfile extends BaseEntity {
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
 
     @Id
     @Column(name = "user_id")
@@ -215,11 +221,11 @@ public class HealthProfile extends BaseEntity {
             case "allergies" -> this.allergies = rawValue;
             case "healthGoal" -> this.healthGoal = rawValue;
             case "mealFrequency" -> applied = setEnum(MealFrequency.class, rawValue, value -> this.mealFrequency = value);
-            case "foodPreference" -> this.foodPreference = rawValue;
+            case "foodPreference" -> applied = setJsonCodeArray(FoodPreference.class, rawValue, value -> this.foodPreference = value);
             case "sugarIntakeFreq" -> applied = setEnum(SugarIntakeFreq.class, rawValue, value -> this.sugarIntakeFreq = value);
             case "caffeineIntake" -> applied = setBoolean(rawValue, value -> this.caffeineIntake = value);
             case "exerciseFrequency" -> applied = setEnum(ExerciseFrequency.class, rawValue, value -> this.exerciseFrequency = value);
-            case "exercisePlace" -> this.exercisePlace = rawValue;
+            case "exercisePlace" -> applied = setJsonCodeArray(ExercisePlace.class, rawValue, value -> this.exercisePlace = value);
             case "exerciseType" -> this.exerciseType = rawValue;
             case "exerciseDuration" -> applied = setEnum(ExerciseDuration.class, rawValue, value -> this.exerciseDuration = value);
             case "avgSteps" -> applied = setInteger(rawValue, value -> this.avgSteps = value);
@@ -394,5 +400,41 @@ public class HealthProfile extends BaseEntity {
         }
         setter.accept(value);
         return true;
+    }
+
+    private static <E extends Enum<E>> boolean setJsonCodeArray(
+            Class<E> enumType,
+            String rawValue,
+            java.util.function.Consumer<String> setter
+    ) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return false;
+        }
+        try {
+            List<String> codes = OBJECT_MAPPER.readValue(
+                    rawValue,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {}
+            );
+            if (codes.isEmpty()) {
+                return false;
+            }
+            List<String> normalized = new ArrayList<>();
+            for (String code : codes) {
+                if (code == null || code.isBlank()) {
+                    return false;
+                }
+                String value = code.trim().toUpperCase(Locale.ROOT);
+                try {
+                    Enum.valueOf(enumType, value);
+                } catch (IllegalArgumentException e) {
+                    return false;
+                }
+                normalized.add(value);
+            }
+            setter.accept(OBJECT_MAPPER.writeValueAsString(normalized));
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
     }
 }

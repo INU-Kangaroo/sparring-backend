@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.survey.entity.Question;
 import com.kangaroo.sparring.domain.survey.entity.QuestionType;
+import com.kangaroo.sparring.global.exception.CustomException;
+import com.kangaroo.sparring.global.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,7 +40,7 @@ public class QuestionResponse {
     @Schema(description = "필수 여부", example = "true")
     private Boolean isRequired;
     @Schema(description = "선택지")
-    private List<String> options;
+    private List<OptionItem> options;
 
     public static QuestionResponse from(Question question) {
         return QuestionResponse.builder()
@@ -48,18 +50,21 @@ public class QuestionResponse {
                 .questionText(question.getQuestionText())
                 .questionOrder(question.getQuestionOrder())
                 .isRequired(question.getIsRequired())
-                .options(parseOptions(question.getOptions()))
+                .options(parseOptions(question.getOptions(), question.getQuestionKey()))
                 .build();
     }
 
-    private static List<String> parseOptions(String options) {
+    private static List<OptionItem> parseOptions(String options, String questionKey) {
         if (options == null || options.isBlank()) {
             return null;
         }
         try {
-            return OBJECT_MAPPER.readValue(options, new TypeReference<List<String>>() {});
+            return OBJECT_MAPPER.readValue(options, new TypeReference<List<OptionItem>>() {});
         } catch (IOException e) {
-            throw new IllegalArgumentException("Invalid options JSON", e);
+            throw new CustomException(
+                    ErrorCode.INVALID_INPUT,
+                    "질문 선택지 포맷 오류(questionKey=" + questionKey + "). [{code,label}] JSON 배열이어야 합니다."
+            );
         }
     }
 }

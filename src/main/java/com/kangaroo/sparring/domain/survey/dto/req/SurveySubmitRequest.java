@@ -1,10 +1,11 @@
 package com.kangaroo.sparring.domain.survey.dto.req;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.kangaroo.sparring.domain.survey.entity.SurveyType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -40,8 +41,11 @@ public class SurveySubmitRequest {
         @NotBlank(message = "질문 키는 필수입니다.")
         private String questionKey;
 
-        @Schema(description = "답변 값 (문자열로 제출)", example = "180")
-        @NotBlank(message = "답변 값은 필수입니다.")
-        private String answerText;
+        @Schema(
+                description = "답변 값 (TEXT: 문자열, NUMBER: 숫자 또는 숫자 문자열, SINGLE_CHOICE: code 문자열, MULTIPLE_CHOICE: code 문자열 배열)",
+                example = "180"
+        )
+        @NotNull(message = "답변 값은 필수입니다.")
+        private JsonNode value;
     }
 }
