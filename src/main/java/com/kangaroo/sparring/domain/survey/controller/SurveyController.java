@@ -10,7 +10,9 @@ import com.kangaroo.sparring.domain.survey.entity.SurveyType;
 import com.kangaroo.sparring.domain.survey.service.SurveyService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
-import com.kangaroo.sparring.global.security.UserIdPrincipal;
+import com.kangaroo.sparring.global.security.principal.UserIdPrincipal;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -37,6 +39,39 @@ public class SurveyController {
     }
 
     @Operation(summary = "설문 응답 제출", description = "설문 응답 제출")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = {
+                            @ExampleObject(
+                                    name = "BASIC",
+                                    value = """
+                                            {
+                                              "surveyType": "BASIC",
+                                              "answers": [
+                                                { "questionKey": "BASIC_HEIGHT", "value": 175 },
+                                                { "questionKey": "BASIC_GENDER", "value": "MALE" }
+                                              ]
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "DETAILED",
+                                    value = """
+                                            {
+                                              "surveyType": "DETAILED",
+                                              "answers": [
+                                                { "questionKey": "DETAILED_MEAL_FREQUENCY", "value": "ONE_TO_TWO" },
+                                                { "questionKey": "DETAILED_FOOD_PREFERENCE", "value": ["CARB_HEAVY", "VEGETARIAN"] },
+                                                { "questionKey": "DETAILED_EXERCISE_PLACE", "value": ["GYM_FACILITY", "OUTDOOR"] }
+                                              ]
+                                            }
+                                            """
+                            )
+                    }
+            )
+    )
     @PostMapping
     public ResponseEntity<SurveySubmitResponse> submitSurvey(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -59,6 +94,32 @@ public class SurveyController {
     }
 
     @Operation(summary = "설문 응답 수정", description = "특정 질문에 대한 응답 수정")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = {
+                            @ExampleObject(
+                                    name = "Single Choice",
+                                    value = """
+                                            {
+                                              "questionKey": "DETAILED_MEAL_FREQUENCY",
+                                              "value": "ONE_TO_TWO"
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "Multiple Choice",
+                                    value = """
+                                            {
+                                              "questionKey": "DETAILED_EXERCISE_PLACE",
+                                              "value": ["GYM_FACILITY", "OUTDOOR"]
+                                            }
+                                            """
+                            )
+                    }
+            )
+    )
     @PatchMapping("/answers")
     public ResponseEntity<AnswerResponse> updateAnswer(
             @AuthenticationPrincipal UserIdPrincipal principal,

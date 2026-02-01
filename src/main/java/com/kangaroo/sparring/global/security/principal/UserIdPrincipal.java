@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.global.security;
+package com.kangaroo.sparring.global.security.principal;
 
 public interface UserIdPrincipal {
 

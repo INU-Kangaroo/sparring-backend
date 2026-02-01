@@ -5,7 +5,7 @@ import com.kangaroo.sparring.domain.measurement.dto.response.BloodSugarLogRespon
 import com.kangaroo.sparring.domain.measurement.dto.response.BloodSugarPredictionResponse;
 import com.kangaroo.sparring.domain.measurement.dto.response.MonthlyBloodSugarResponse;
 import com.kangaroo.sparring.domain.measurement.service.BloodSugarService;
-import com.kangaroo.sparring.global.security.jwt.CustomUserPrincipal;
+import com.kangaroo.sparring.global.security.principal.UserIdPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +35,7 @@ public class BloodSugarController {
     @Operation(summary = "혈당 측정 기록 등록", description = "혈당 측정 기록을 등록하고 AI 예측을 자동 생성한다")
     @PostMapping("/logs")
     public ResponseEntity<BloodSugarLogResponse> createBloodSugarLog(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @AuthenticationPrincipal UserIdPrincipal principal,
             @Valid @RequestBody BloodSugarLogCreateRequest request
     ) {
         Long userId = principal.getUserId();
@@ -48,7 +48,7 @@ public class BloodSugarController {
     @Operation(summary = "혈당 측정 기록 조회 (기간)", description = "특정 기간의 혈당 측정 기록을 조회한다")
     @GetMapping("/logs")
     public ResponseEntity<List<BloodSugarLogResponse>> getBloodSugarLogs(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @AuthenticationPrincipal UserIdPrincipal principal,
             @Parameter(description = "시작 날짜 (yyyy-MM-dd)", example = "2026-01-01")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "종료 날짜 (yyyy-MM-dd)", example = "2026-01-31")
@@ -70,7 +70,7 @@ public class BloodSugarController {
     @Operation(summary = "혈당 측정 기록 조회 (월)", description = "특정 연도/월의 혈당 측정 기록을 조회한다")
     @GetMapping("/logs/monthly")
     public ResponseEntity<List<BloodSugarLogResponse>> getBloodSugarLogsByMonth(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @AuthenticationPrincipal UserIdPrincipal principal,
             @Parameter(description = "연도", example = "2025")
             @RequestParam int year,
             @Parameter(description = "월 (1-12)", example = "10")
@@ -87,7 +87,7 @@ public class BloodSugarController {
     @Operation(summary = "월별 혈당 집계 조회", description = "특정 연도의 월별 혈당 통계를 조회한다 (1월~12월)")
     @GetMapping("/logs/monthly-stats")
     public ResponseEntity<List<MonthlyBloodSugarResponse>> getMonthlyBloodSugar(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @AuthenticationPrincipal UserIdPrincipal principal,
             @Parameter(description = "연도", example = "2025")
             @RequestParam int year
     ) {
@@ -102,7 +102,7 @@ public class BloodSugarController {
     @Operation(summary = "혈당 예측 조회", description = "특정 기간의 혈당 예측 결과를 조회한다")
     @GetMapping("/predictions")
     public ResponseEntity<List<BloodSugarPredictionResponse>> getBloodSugarPredictions(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @AuthenticationPrincipal UserIdPrincipal principal,
             @Parameter(description = "시작 날짜 (yyyy-MM-dd)", example = "2026-01-01")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "종료 날짜 (yyyy-MM-dd)", example = "2026-01-31")
