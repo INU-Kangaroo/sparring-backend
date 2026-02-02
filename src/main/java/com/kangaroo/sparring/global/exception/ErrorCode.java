@@ -48,6 +48,11 @@ public enum ErrorCode {
     MEASUREMENT_TIME_FUTURE(HttpStatus.BAD_REQUEST, "M011", "측정 시간은 미래일 수 없습니다"),
     INSUFFICIENT_DATA_FOR_PREDICTION(HttpStatus.BAD_REQUEST, "M012", "예측을 위한 충분한 데이터가 없습니다"),
 
+    // Food
+    FOOD_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "음식을 찾을 수 없습니다"),
+    DUPLICATE_FOOD(HttpStatus.CONFLICT, "F002", "이미 등록된 음식입니다"),
+    EXTERNAL_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "F003", "외부 API 호출에 실패했습니다"),
+
     // Common
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 오류가 발생했습니다");
