@@ -42,60 +42,14 @@ public class EmailService {
      * 이메일 인증코드 발송
      */
     public EmailVerificationResult sendVerificationCode(String email, Long userId) {
-        String cooldownKey = RESEND_COOLDOWN_PREFIX + email;
-        String cooldown = redisTemplate.opsForValue().get(cooldownKey);
-        if (cooldown != null) {
-            throw new CustomException(ErrorCode.TOO_MANY_REQUESTS);
-        }
-
-        validateEmailForVerification(email, userId);
-
-        String code = generateRandomCode();
-        String verificationId = generateVerificationId();
-        saveVerification(verificationId, email, code, userId);
-
-        redisTemplate.opsForValue().set(
-                cooldownKey,
-                "true",
-                RESEND_COOLDOWN_SECONDS,
-                TimeUnit.SECONDS
-        );
-
-        sendEmail(email, code);
-
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CODE_EXPIRATION_MINUTES);
-        log.info("email verification sent: email={}, verificationId={}", email, verificationId);
-        return EmailVerificationResult.forSend(verificationId, email, expiresAt);
+        return sendVerification(email, userId, "email verification sent");
     }
 
     /**
      * 이메일 인증코드 재발송
      */
     public EmailVerificationResult resendVerificationCode(String email, Long userId) {
-        String cooldownKey = RESEND_COOLDOWN_PREFIX + email;
-        String cooldown = redisTemplate.opsForValue().get(cooldownKey);
-        if (cooldown != null) {
-            throw new CustomException(ErrorCode.TOO_MANY_REQUESTS);
-        }
-
-        validateEmailForVerification(email, userId);
-
-        String code = generateRandomCode();
-        String verificationId = generateVerificationId();
-        saveVerification(verificationId, email, code, userId);
-
-        redisTemplate.opsForValue().set(
-                cooldownKey,
-                "true",
-                RESEND_COOLDOWN_SECONDS,
-                TimeUnit.SECONDS
-        );
-
-        sendEmail(email, code);
-
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CODE_EXPIRATION_MINUTES);
-        log.info("email verification resent: email={}, verificationId={}", email, verificationId);
-        return EmailVerificationResult.forSend(verificationId, email, expiresAt);
+        return sendVerification(email, userId, "email verification resent");
     }
 
     /**
@@ -194,6 +148,39 @@ public class EmailService {
                 verificationId,
                 CODE_EXPIRATION_MINUTES,
                 TimeUnit.MINUTES
+        );
+    }
+
+    private EmailVerificationResult sendVerification(String email, Long userId, String logMessage) {
+        enforceResendCooldown(email);
+        validateEmailForVerification(email, userId);
+
+        String code = generateRandomCode();
+        String verificationId = generateVerificationId();
+        saveVerification(verificationId, email, code, userId);
+        startResendCooldown(email);
+        sendEmail(email, code);
+
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CODE_EXPIRATION_MINUTES);
+        log.info("{}: email={}, verificationId={}", logMessage, email, verificationId);
+        return EmailVerificationResult.forSend(verificationId, email, expiresAt);
+    }
+
+    private void enforceResendCooldown(String email) {
+        String cooldownKey = RESEND_COOLDOWN_PREFIX + email;
+        String cooldown = redisTemplate.opsForValue().get(cooldownKey);
+        if (cooldown != null) {
+            throw new CustomException(ErrorCode.TOO_MANY_REQUESTS);
+        }
+    }
+
+    private void startResendCooldown(String email) {
+        String cooldownKey = RESEND_COOLDOWN_PREFIX + email;
+        redisTemplate.opsForValue().set(
+                cooldownKey,
+                "true",
+                RESEND_COOLDOWN_SECONDS,
+                TimeUnit.SECONDS
         );
     }
 
