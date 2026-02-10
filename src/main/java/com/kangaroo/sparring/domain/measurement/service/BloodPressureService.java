@@ -47,16 +47,19 @@ public class BloodPressureService {
 
         // 비즈니스 검증
         validateBloodPressureValues(request);
-        validateMeasurementTime(request.getMeasuredAt());
+        LocalDateTime measuredAt = LocalDateTime.of(
+                request.getMeasurementDate(),
+                request.getMeasurementTime()
+        );
+        validateMeasurementTime(measuredAt);
 
         BloodPressureLog bloodPressureLog = BloodPressureLog.create(
                 user,
                 request.getSystolic(),
                 request.getDiastolic(),
                 request.getHeartRate(),
-                request.getMeasuredAt(),
-                request.getMeasurementType(),
-                request.getNote()
+                measuredAt,
+                request.getMeasurementLabel()
         );
 
         BloodPressureLog savedLog = bloodPressureLogRepository.save(bloodPressureLog);

@@ -45,14 +45,18 @@ public class BloodSugarService {
         User user = findUserById(userId);
 
         validateGlucoseLevel(request.getGlucoseLevel());
-        validateMeasurementTime(request.getMeasurementTime());
+
+        LocalDateTime measurementTime = LocalDateTime.of(
+                request.getMeasurementDate(),
+                request.getMeasurementTime()
+        );
+        validateMeasurementTime(measurementTime);
 
         BloodSugarLog bloodSugarLog = BloodSugarLog.create(
                 user,
                 request.getGlucoseLevel(),
-                request.getMeasurementTime(),
-                request.getMeasurementType(),
-                request.getNote()
+                measurementTime,
+                request.getMeasurementLabel()
         );
 
         BloodSugarLog savedLog = bloodSugarLogRepository.save(bloodSugarLog);
