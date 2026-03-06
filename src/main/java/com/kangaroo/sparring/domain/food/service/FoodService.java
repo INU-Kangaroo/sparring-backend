@@ -42,6 +42,9 @@ public class FoodService {
     private static final int PREFIX_CANDIDATE_LIMIT = 150;
     private static final int CONTAINS_CANDIDATE_LIMIT_PER_TERM = 250;
     private static final int CANDIDATE_HARD_LIMIT = 2000;
+    private static final int BRAND_PREFIX_PENALTY = 220;
+    private static final int BRAND_HEAVY_PENALTY = 140;
+    private static final int ENGLISH_HEAVY_PENALTY = 90;
 
     private static final Map<String, List<String>> TOKEN_SYNONYM_MAP = Map.ofEntries(
             Map.entry("닭가슴살", List.of("닭가슴", "닭고기", "치킨브레스트", "chicken breast", "chickenbreast")),
@@ -257,12 +260,7 @@ public class FoodService {
         int lengthGap = Math.abs(normalizedName.length() - normalizedKeyword.length());
         score += Math.max(0, 140 - (lengthGap * 4));
 
-        if (foodName.startsWith("[") || foodName.startsWith("(")) {
-            score -= 80;
-        }
-        if (normalizedName.length() - normalizedKeyword.length() >= 12) {
-            score -= 50;
-        }
+        score -= calculateBrandPenalty(foodName, normalizedName);
 
         for (String searchTerm : searchTerms) {
             String normalizedTerm = normalizeForMatch(searchTerm);
@@ -315,5 +313,30 @@ public class FoodService {
             }
             candidates.putIfAbsent(food.getId(), food);
         }
+    }
+
+    private int calculateBrandPenalty(String rawName, String normalizedName) {
+        int penalty = 0;
+        String trimmed = rawName == null ? "" : rawName.trim();
+
+        if (trimmed.startsWith("[") || trimmed.startsWith("(")) {
+            penalty += BRAND_PREFIX_PENALTY;
+        }
+
+        if (trimmed.matches("^[\\[\\(][^\\]\\)]{1,30}[\\]\\)].*")) {
+            penalty += BRAND_HEAVY_PENALTY;
+        }
+
+        long englishCount = normalizedName.chars()
+                .filter(ch -> (ch >= 'a' && ch <= 'z'))
+                .count();
+        if (!normalizedName.isBlank() && englishCount * 1.0 / normalizedName.length() >= 0.55) {
+            penalty += ENGLISH_HEAVY_PENALTY;
+        }
+
+        if (normalizedName.length() >= 16) {
+            penalty += 40;
+        }
+        return penalty;
     }
 }
