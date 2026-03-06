@@ -28,6 +28,15 @@ public class Food extends BaseEntity {
     @Column(name = "serving_unit", nullable = false, length = 20)
     private String servingUnit;
 
+    @Column(name = "portion_label", length = 20)
+    private String portionLabel;
+
+    @Column(name = "portion_amount", length = 50)
+    private String portionAmount;
+
+    @Column(name = "manufacturer", length = 255)
+    private String manufacturer;
+
     @OneToOne(mappedBy = "food", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private MealNutrition mealNutrition;
 
@@ -39,6 +48,9 @@ public class Food extends BaseEntity {
                 .name(name)
                 .servingSize(servingSize)
                 .servingUnit(servingUnit)
+                .portionLabel(null)
+                .portionAmount(null)
+                .manufacturer(null)
                 .build();
     }
 
@@ -56,5 +68,11 @@ public class Food extends BaseEntity {
         this.name = name;
         this.servingSize = servingSize;
         this.servingUnit = servingUnit;
+    }
+
+    public void updateDisplayMeta(String portionLabel, String portionAmount, String manufacturer) {
+        this.portionLabel = portionLabel;
+        this.portionAmount = portionAmount;
+        this.manufacturer = manufacturer;
     }
 }

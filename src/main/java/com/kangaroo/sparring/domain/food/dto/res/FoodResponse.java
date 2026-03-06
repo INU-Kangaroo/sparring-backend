@@ -28,6 +28,15 @@ public class FoodResponse {
     @Schema(description = "칼로리 (kcal)", example = "165.0")
     private Double calories;
 
+    @Schema(description = "제공량 라벨", example = "1인분")
+    private String portionLabel;
+
+    @Schema(description = "제공량 표시값", example = "350g")
+    private String portionAmount;
+
+    @Schema(description = "제조사명", example = "대한푸드텍(주)")
+    private String manufacturer;
+
     public static FoodResponse from(Food food) {
         MealNutrition nutrition = food.getMealNutrition();
         return FoodResponse.builder()
@@ -36,6 +45,9 @@ public class FoodResponse {
                 .servingSize(food.getServingSize())
                 .servingUnit(food.getServingUnit())
                 .calories(nutrition != null ? nutrition.getCalories() : null)
+                .portionLabel(food.getPortionLabel())
+                .portionAmount(food.getPortionAmount())
+                .manufacturer(food.getManufacturer())
                 .build();
     }
 }
