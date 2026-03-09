@@ -134,13 +134,11 @@ public class BloodSugarService {
     public List<MonthlyBloodSugarResponse> getMonthlyStatistics(Long userId, int year) {
         log.info("월별 혈당 집계 조회: userId={}, year={}", userId, year);
 
-        MeasurementValidationSupport.validateYearRange(year);
-
-        LocalDateTime startDateTime = LocalDate.of(year, 1, 1).atStartOfDay();
-        LocalDateTime endDateTime = LocalDate.of(year, 12, 31).atTime(LocalTime.MAX);
+        MeasurementValidationSupport.DateTimeRange yearRange =
+                MeasurementValidationSupport.toYearDateTimeRange(year);
 
         List<BloodSugarLogRepository.MonthlyBloodSugarStats> stats = bloodSugarLogRepository
-                .findMonthlyStatsByUserId(userId, startDateTime, endDateTime);
+                .findMonthlyStatsByUserId(userId, yearRange.start(), yearRange.end());
 
         if (stats.isEmpty()) {
             log.info("해당 연도 혈당 데이터 없음: userId={}, year={}", userId, year);
@@ -152,7 +150,7 @@ public class BloodSugarService {
                 .collect(Collectors.toMap(BloodSugarLogRepository.MonthlyBloodSugarStats::getMonth, item -> item));
 
         List<MonthlyBloodSugarResponse> responses = new ArrayList<>();
-        for (int month = 1; month <= 12; month++) {
+        MeasurementValidationSupport.monthsOfYear().forEach(month -> {
             BloodSugarLogRepository.MonthlyBloodSugarStats monthStats = statsByMonth.get(month);
 
             if (monthStats == null || monthStats.getCount() == null || monthStats.getCount() == 0L) {
@@ -164,7 +162,7 @@ public class BloodSugarService {
                         .minValue(null)
                         .count(0L)
                         .build());
-                continue;
+                return;
             }
 
             BigDecimal avg = monthStats.getAvgValue() == null
@@ -179,7 +177,7 @@ public class BloodSugarService {
                     monthStats.getMinValue(),
                     monthStats.getCount()
             ));
-        }
+        });
 
         return responses;
     }
