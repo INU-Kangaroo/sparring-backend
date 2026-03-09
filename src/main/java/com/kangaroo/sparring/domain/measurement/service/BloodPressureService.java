@@ -142,13 +142,11 @@ public class BloodPressureService {
     public List<MonthlyBloodPressureResponse> getMonthlyStatistics(Long userId, int year) {
         log.info("월별 혈압 집계 조회: userId={}, year={}", userId, year);
 
-        MeasurementValidationSupport.validateYearRange(year);
-
-        LocalDateTime startDateTime = LocalDate.of(year, 1, 1).atStartOfDay();
-        LocalDateTime endDateTime = LocalDate.of(year, 12, 31).atTime(LocalTime.MAX);
+        MeasurementValidationSupport.DateTimeRange yearRange =
+                MeasurementValidationSupport.toYearDateTimeRange(year);
 
         List<BloodPressureLogRepository.MonthlyBloodPressureStats> stats = bloodPressureLogRepository
-                .findMonthlyStatsByUserId(userId, startDateTime, endDateTime);
+                .findMonthlyStatsByUserId(userId, yearRange.start(), yearRange.end());
 
         if (stats.isEmpty()) {
             log.info("해당 연도 혈압 데이터 없음: userId={}, year={}", userId, year);
@@ -160,7 +158,7 @@ public class BloodPressureService {
                 .collect(Collectors.toMap(BloodPressureLogRepository.MonthlyBloodPressureStats::getMonth, item -> item));
 
         List<MonthlyBloodPressureResponse> responses = new ArrayList<>();
-        for (int month = 1; month <= 12; month++) {
+        MeasurementValidationSupport.monthsOfYear().forEach(month -> {
             BloodPressureLogRepository.MonthlyBloodPressureStats monthStats = statsByMonth.get(month);
 
             if (monthStats == null || monthStats.getCount() == null || monthStats.getCount() == 0L) {
@@ -171,7 +169,7 @@ public class BloodPressureService {
                         MonthlyBloodPressureResponse.Stat.of(null, null, null),
                         0L
                 ));
-                continue;
+                return;
             }
 
             BigDecimal avgSystolic = monthStats.getAvgSystolic() == null
@@ -196,7 +194,7 @@ public class BloodPressureService {
                     ),
                     monthStats.getCount()
             ));
-        }
+        });
 
         return responses;
     }
