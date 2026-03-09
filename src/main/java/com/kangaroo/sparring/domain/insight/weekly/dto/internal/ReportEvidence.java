@@ -4,8 +4,8 @@ import java.util.List;
 
 public record ReportEvidence(
         int recordDays,
-        int bloodSugarMeasurements,
-        int bloodPressureMeasurements,
+        int bloodSugarRecordDays,
+        int bloodPressureRecordDays,
         ScoreEvidence score,
         List<DailyConditionEvidence> dailyConditions,
         List<HighlightEvidence> highlights,
