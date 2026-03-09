@@ -1,6 +1,6 @@
 package com.kangaroo.sparring.domain.food.log.dto.req;
 
-import com.kangaroo.sparring.domain.food.log.type.MealTime;
+import com.kangaroo.sparring.domain.common.type.MealTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

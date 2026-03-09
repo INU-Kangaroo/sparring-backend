@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.meal.type;
+package com.kangaroo.sparring.domain.common.type;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

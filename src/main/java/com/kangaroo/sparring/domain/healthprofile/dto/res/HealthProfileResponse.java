@@ -1,6 +1,7 @@
 package com.kangaroo.sparring.domain.healthprofile.dto.res;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
+import com.kangaroo.sparring.domain.common.type.ExerciseDuration;
 import com.kangaroo.sparring.domain.survey.type.*;
 import com.kangaroo.sparring.domain.user.type.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
