@@ -2,7 +2,7 @@ package com.kangaroo.sparring.domain.exercise.log.service;
 
 import com.kangaroo.sparring.domain.exercise.catalog.entity.Exercise;
 import com.kangaroo.sparring.domain.exercise.catalog.repository.ExerciseRepository;
-import com.kangaroo.sparring.domain.recommendation.type.ExerciseIntensity;
+import com.kangaroo.sparring.domain.common.type.ExerciseIntensity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
