@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 @Component
 @RequiredArgsConstructor
@@ -71,8 +72,8 @@ public class ReportRuleEngine {
 
         return new ReportEvidence(
                 comment.recordDays(),
-                bsLogs.size(),
-                bpLogs.size(),
+                calcMeasurementRecordDays(bsLogs, monday, BloodSugarLog::getMeasurementTime),
+                calcMeasurementRecordDays(bpLogs, monday, BloodPressureLog::getMeasuredAt),
                 new ScoreEvidence(healthManagement, measurementConsistency, lifestyle, overall),
                 dailyConditions,
                 highlights,
@@ -95,6 +96,19 @@ public class ReportRuleEngine {
         exercise.forEach(l -> recordedDates.add(l.getLoggedAt().toLocalDate()));
         return (int) recordedDates.stream()
                 .filter(d -> !d.isBefore(monday) && !d.isAfter(monday.plusDays(WEEK_DAYS - 1L)))
+                .count();
+    }
+
+    private <T> int calcMeasurementRecordDays(
+            List<T> logs,
+            LocalDate monday,
+            Function<T, java.time.LocalDateTime> timeExtractor
+    ) {
+        LocalDate sunday = monday.plusDays(WEEK_DAYS - 1L);
+        return (int) logs.stream()
+                .map(log -> timeExtractor.apply(log).toLocalDate())
+                .filter(date -> !date.isBefore(monday) && !date.isAfter(sunday))
+                .distinct()
                 .count();
     }
 }
