@@ -1,8 +1,8 @@
 package com.kangaroo.sparring.domain.recommendation.dto.req;
 
-import com.kangaroo.sparring.domain.recommendation.type.ExerciseDuration;
-import com.kangaroo.sparring.domain.recommendation.type.ExerciseIntensity;
-import com.kangaroo.sparring.domain.recommendation.type.ExerciseLocation;
+import com.kangaroo.sparring.domain.common.type.ExerciseDuration;
+import com.kangaroo.sparring.domain.common.type.ExerciseIntensity;
+import com.kangaroo.sparring.domain.common.type.ExerciseLocation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;

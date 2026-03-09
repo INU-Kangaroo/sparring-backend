@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.recommendation.type;
+package com.kangaroo.sparring.domain.common.type;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

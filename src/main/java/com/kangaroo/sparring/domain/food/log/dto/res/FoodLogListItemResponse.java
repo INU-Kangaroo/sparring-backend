@@ -1,7 +1,7 @@
 package com.kangaroo.sparring.domain.food.log.dto.res;
 
 import com.kangaroo.sparring.domain.food.log.entity.FoodLog;
-import com.kangaroo.sparring.domain.food.log.type.MealTime;
+import com.kangaroo.sparring.domain.common.type.MealTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
