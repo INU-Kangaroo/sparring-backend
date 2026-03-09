@@ -3,7 +3,7 @@ package com.kangaroo.sparring.domain.food.log.entity;
 import com.kangaroo.sparring.domain.common.BaseEntity;
 import com.kangaroo.sparring.domain.food.catalog.entity.Food;
 import com.kangaroo.sparring.domain.food.catalog.entity.MealNutrition;
-import com.kangaroo.sparring.domain.food.log.type.MealTime;
+import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;

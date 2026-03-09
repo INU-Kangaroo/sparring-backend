@@ -4,10 +4,10 @@ import com.kangaroo.sparring.domain.exercise.catalog.entity.Exercise;
 import com.kangaroo.sparring.domain.exercise.catalog.repository.ExerciseRepository;
 import com.kangaroo.sparring.domain.exercise.catalog.type.ExerciseCategory;
 import com.kangaroo.sparring.domain.exercise.catalog.type.ExerciseImpactLevel;
-import com.kangaroo.sparring.domain.exercise.catalog.type.ExerciseLocation;
+import com.kangaroo.sparring.domain.common.type.ExerciseLocation;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.recommendation.type.ExerciseIntensity;
+import com.kangaroo.sparring.domain.common.type.ExerciseIntensity;
 import com.kangaroo.sparring.domain.survey.type.BloodPressureStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -37,7 +37,7 @@ public class ExerciseCandidateService {
             HealthProfile healthProfile,
             List<BloodPressureLog> recentBloodPressures,
             ExerciseIntensity intensity,
-            com.kangaroo.sparring.domain.recommendation.type.ExerciseLocation requestLocation
+            ExerciseLocation requestLocation
     ) {
         ExerciseLocation location = mapRequestLocation(requestLocation);
         boolean excludeHighImpact = shouldExcludeHighImpact(healthProfile, recentBloodPressures);
@@ -124,7 +124,7 @@ public class ExerciseCandidateService {
     }
 
     private ExerciseLocation mapRequestLocation(
-            com.kangaroo.sparring.domain.recommendation.type.ExerciseLocation requestLocation
+            ExerciseLocation requestLocation
     ) {
         return switch (requestLocation) {
             case INDOOR, GYM -> ExerciseLocation.INDOOR;

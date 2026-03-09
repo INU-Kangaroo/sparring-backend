@@ -1,6 +1,7 @@
 package com.kangaroo.sparring.domain.healthprofile.entity;
 
 import com.kangaroo.sparring.domain.common.BaseEntity;
+import com.kangaroo.sparring.domain.common.type.ExerciseDuration;
 import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.healthprofile.support.HealthProfileFieldSupport;
