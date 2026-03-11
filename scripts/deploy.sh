@@ -50,6 +50,12 @@ if [ -z "$IMAGE_TAG" ]; then
   exit 1
 fi
 
+if [ -z "$GITHUB_REPOSITORY" ]; then
+  echo "ERROR: GITHUB_REPOSITORY가 비어 있습니다."
+  exit 1
+fi
+GITHUB_REPOSITORY="$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+
 # 롤백용 현재 태그 저장 (실행 중 컨테이너가 있는 경우)
 CURRENT_APP_IMAGE=$(docker ps --filter "name=^/sparring-app$" --format "{{.Image}}" | head -n 1 || true)
 if [ -n "$CURRENT_APP_IMAGE" ]; then
