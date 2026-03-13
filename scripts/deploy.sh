@@ -29,13 +29,12 @@ fi
 
 REQUIRED_VARS=(
   SPRING_PROFILES_ACTIVE
-  DB_NAME
-  DB_ROOT_PASSWORD
+  DB_URL
   DB_USERNAME
   DB_PASSWORD
   REDIS_HOST
   REDIS_PORT
-  REDIS_PASSWORD
+  REDIS_SSL_ENABLED
   JWT_SECRET
   GOOGLE_WEB_CLIENT_ID
   GOOGLE_IOS_CLIENT_ID
@@ -90,10 +89,6 @@ docker pull ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG}
 export IMAGE_TAG
 export GITHUB_REPOSITORY
 
-# DB/Redis만 먼저 올리고 healthy 대기
-echo ">> 의존 서비스 기동..."
-docker compose -f "$COMPOSE_FILE" up -d mysql redis
-
 wait_for_health() {
   local service_name="$1"
   local max_retries=24
@@ -112,9 +107,6 @@ wait_for_health() {
     sleep "$retry_interval"
   done
 }
-
-wait_for_health "mysql"
-wait_for_health "redis"
 
 # app 교체 후 app 자체 health 확인
 echo ">> 앱 컨테이너 재시작..."
