@@ -40,7 +40,9 @@ public class ReportRuleEngine {
         ReportRuleSupport.ExerciseStats exercise = reportRuleSupport.calcExerciseStats(exerciseLogs);
 
         int healthManagement = reportRuleSupport.calcHealthManagementScore(bs, bp);
-        int measurementConsistency = reportRuleSupport.calcMeasurementConsistencyScore(bsLogs.size(), bpLogs.size());
+        int bsRecordDays = calcMeasurementRecordDays(bsLogs, monday, BloodSugarLog::getMeasurementTime);
+        int bpRecordDays = calcMeasurementRecordDays(bpLogs, monday, BloodPressureLog::getMeasuredAt);
+        int measurementConsistency = reportRuleSupport.calcMeasurementConsistencyScore(bsRecordDays, bpRecordDays);
         int lifestyle = reportRuleSupport.calcLifestyleScore(meal, exercise);
         int stability = reportRuleSupport.calcStabilityScore(bsLogs, bpLogs);
         int trend = reportRuleSupport.calcTrendScore(monday, bsLogs, bpLogs);

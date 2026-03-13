@@ -7,8 +7,11 @@ services:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - MYSQL_USER=${DB_USERNAME}
       - MYSQL_PASSWORD=${DB_PASSWORD}
+      - TZ=Asia/Seoul
     volumes:
       - mysql_data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -20,6 +23,8 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+    networks:
+      - sparring-network
 
   redis:
     image: redis:7-alpine
@@ -33,15 +38,17 @@ services:
       timeout: 3s
       retries: 3
     restart: unless-stopped
+    networks:
+      - sparring-network
 
   app:
     image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG}
     container_name: sparring-app
-    # 포트를 외부에 직접 노출하지 않음 (nginx가 프록시)
     expose:
       - "8080"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Seoul
       - DB_URL=jdbc:mysql://sparring-mysql:3306/${DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -63,12 +70,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
+    networks:
+      - sparring-network
 
-  # ─────────────────────────────────────
-  # Nginx - 리버스 프록시 (HTTP)
-  # 도메인 생기면 nginx.ssl.conf 로 교체 + certbot 추가
-  # ─────────────────────────────────────
   nginx:
     image: nginx:alpine
     container_name: sparring-nginx
@@ -85,7 +96,13 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - sparring-network
 
 volumes:
   mysql_data:
   redis_data:
+
+networks:
+  sparring-network:
+    driver: bridge

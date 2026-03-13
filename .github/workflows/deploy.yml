@@ -103,7 +103,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    name: EC2 서버 자동 배포
+    name: EC2 서버 배포
     runs-on: ubuntu-latest
     needs: build-image
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -152,7 +152,7 @@ jobs:
             set -a; source ~/server/.env; set +a
 
             export IMAGE_TAG="${{ needs.build-image.outputs.image-tag }}"
-            export GITHUB_REPOSITORY="${{ github.repository }}"
+            export GITHUB_REPOSITORY="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
             export GITHUB_ACTOR="${{ github.actor }}"
             export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
 
