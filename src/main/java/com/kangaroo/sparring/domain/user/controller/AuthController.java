@@ -1,8 +1,10 @@
 package com.kangaroo.sparring.domain.user.controller;
 
 import com.kangaroo.sparring.domain.user.dto.req.EmailRequest;
+import com.kangaroo.sparring.domain.user.dto.req.GoogleSdkLoginRequest;
+import com.kangaroo.sparring.domain.user.dto.req.KakaoSdkLoginRequest;
 import com.kangaroo.sparring.domain.user.dto.req.LoginRequest;
-import com.kangaroo.sparring.domain.user.dto.req.OAuth2CodeRequest;
+import com.kangaroo.sparring.domain.user.dto.req.OAuth2PkceLoginRequest;
 import com.kangaroo.sparring.domain.user.dto.req.SignupRequest;
 import com.kangaroo.sparring.domain.user.dto.req.SocialSignupCompleteRequest;
 import com.kangaroo.sparring.domain.user.dto.req.VerifyCodeRequest;
@@ -193,64 +195,90 @@ public class AuthController {
     }
 
     /**
-     * SDK 로그인 + Authorization Code 교환
+     * 소셜 로그인 (Google/Kakao, SDK/PKCE 분리 엔드포인트)
      */
-    @Operation(summary = "OAuth2 코드 로그인", description = "SDK 로그인으로 받은 authorization code를 JWT로 교환")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "OK",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(
-                                    name = "Success",
-                                    value = """
-                                            {
-                                              "userId": 1,
-                                              "email": "test@example.com",
-                                              "username": "홍길동",
-                                              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                                              "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                                              "tokenType": "Bearer"
-                                            }
-                                            """
-                            )
-                    )
-            )
-    })
-    @PostMapping("/oauth2/{provider}")
+    @Operation(summary = "Google PKCE 로그인", description = "브라우저 기반 Google OAuth authorization code + PKCE로 JWT 발급")
+    @PostMapping("/oauth2/google/pkce")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
             content = @Content(
                     mediaType = "application/json",
-                    examples = {
-                            @ExampleObject(
-                                    name = "Google (Authorization Code + PKCE)",
-                                    value = """
-                                            {
-                                              "code": "4/0AfJohXk...",
-                                              "redirectUri": "com.example.app:/oauth2redirect",
-                                              "codeVerifier": "hJtX...sK9"
-                                            }
-                                            """
-                            ),
-                            @ExampleObject(
-                                    name = "Kakao (SDK Access Token)",
-                                    value = """
-                                            {
-                                              "accessToken": "eyJhbGciOi..."
-                                            }
-                                            """
-                            )
-                    }
+                    examples = @ExampleObject(
+                            name = "Google PKCE",
+                            value = """
+                                    {
+                                      "authorizationCode": "4/0AfJohXk...",
+                                      "redirectUri": "https://api.example.com/oauth/google/callback",
+                                      "codeVerifier": "hJtX...sK9"
+                                    }
+                                    """
+                    )
             )
     )
-    public ResponseEntity<AuthResponse> oauth2Login(
-            @PathVariable String provider,
-            @Valid @RequestBody OAuth2CodeRequest request
-    ) {
-        AuthResponse response = oAuth2CodeAuthService.loginWithAuthorizationCode(provider, request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> googlePkceLogin(@Valid @RequestBody OAuth2PkceLoginRequest request) {
+        return ResponseEntity.ok(oAuth2CodeAuthService.loginWithGooglePkce(request));
+    }
+
+    @Operation(summary = "Google SDK 로그인", description = "모바일 Google SDK가 발급한 server auth code로 JWT 발급")
+    @PostMapping("/oauth2/google/sdk")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            name = "Google SDK",
+                            value = """
+                                    {
+                                      "serverAuthCode": "4/0AfJohXk..."
+                                    }
+                                    """
+                    )
+            )
+    )
+    public ResponseEntity<AuthResponse> googleSdkLogin(@Valid @RequestBody GoogleSdkLoginRequest request) {
+        return ResponseEntity.ok(oAuth2CodeAuthService.loginWithGoogleSdkCode(request));
+    }
+
+    @Operation(summary = "Kakao PKCE 로그인", description = "브라우저 기반 Kakao OAuth authorization code + PKCE로 JWT 발급 (redirectUri는 카카오 콘솔에 등록 가능한 URI 사용)")
+    @PostMapping("/oauth2/kakao/pkce")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            name = "Kakao PKCE",
+                            value = """
+                                    {
+                                      "authorizationCode": "abc123...",
+                                      "redirectUri": "https://api.example.com/oauth/kakao/callback",
+                                      "codeVerifier": "hJtX...sK9"
+                                    }
+                                    """
+                    )
+            )
+    )
+    public ResponseEntity<AuthResponse> kakaoPkceLogin(@Valid @RequestBody OAuth2PkceLoginRequest request) {
+        return ResponseEntity.ok(oAuth2CodeAuthService.loginWithKakaoPkce(request));
+    }
+
+    @Operation(summary = "Kakao SDK 로그인", description = "모바일 Kakao SDK가 발급한 access token으로 JWT 발급")
+    @PostMapping("/oauth2/kakao/sdk")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            name = "Kakao SDK",
+                            value = """
+                                    {
+                                      "accessToken": "eyJhbGciOi..."
+                                    }
+                                    """
+                    )
+            )
+    )
+    public ResponseEntity<AuthResponse> kakaoSdkLogin(@Valid @RequestBody KakaoSdkLoginRequest request) {
+        return ResponseEntity.ok(oAuth2CodeAuthService.loginWithKakaoSdkAccessToken(request));
     }
 
     @Operation(summary = "소셜 회원가입 완료", description = "소셜 로그인 후 기본 프로필 입력으로 회원가입 완료 처리")
@@ -327,5 +355,5 @@ public class AuthController {
         return ResponseEntity.ok(MessageResponse.of("로그아웃이 완료되었습니다."));
     }
 
-    
+
 }
