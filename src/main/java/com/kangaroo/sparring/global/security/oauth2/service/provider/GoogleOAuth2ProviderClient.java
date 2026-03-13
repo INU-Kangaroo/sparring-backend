@@ -1,6 +1,5 @@
 package com.kangaroo.sparring.global.security.oauth2.service.provider;
 
-import com.kangaroo.sparring.domain.user.dto.req.OAuth2CodeRequest;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -25,16 +24,22 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class GoogleOAuth2ProviderClient implements OAuth2ProviderClient {
+public class GoogleOAuth2ProviderClient {
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_RESPONSE_TYPE =
             new ParameterizedTypeReference<>() {};
 
     private final RestTemplate restTemplate;
 
-    @Value("${spring.oauth2.google.client-id}")
-    private String googleClientId;
+    @Value("${spring.oauth2.google.client-id:}")
+    private String googleDefaultClientId;
 
-    @Value("${spring.oauth2.google.client-secret}")
+    @Value("${spring.oauth2.google.web-client-id:${spring.oauth2.google.client-id:}}")
+    private String googleWebClientId;
+
+    @Value("${spring.oauth2.google.web-redirect-uri:}")
+    private String googleWebRedirectUri;
+
+    @Value("${spring.oauth2.google.client-secret:}")
     private String googleClientSecret;
 
     @Value("${spring.oauth2.google.token-uri}")
@@ -46,35 +51,39 @@ public class GoogleOAuth2ProviderClient implements OAuth2ProviderClient {
     @Value("${spring.oauth2.google.token-info-uri}")
     private String googleTokenInfoUri;
 
-    @Override
-    public String getProvider() {
-        return "google";
-    }
+    @Value("${spring.oauth2.google.sdk-redirect-uri:}")
+    private String googleSdkRedirectUri;
 
-    @Override
-    public String resolveAccessToken(OAuth2CodeRequest request) {
-        if (request.getCode() == null || request.getCode().isBlank()) {
+    public String exchangePkceCode(String code, String redirectUri, String codeVerifier) {
+        if (code == null || code.isBlank()) {
             throw new CustomException(ErrorCode.INVALID_INPUT, "code는 필수입니다.");
         }
-        if (request.getRedirectUri() == null || request.getRedirectUri().isBlank()) {
+        if (redirectUri == null || redirectUri.isBlank()) {
             throw new CustomException(ErrorCode.OAUTH2_MISSING_REDIRECT_URI);
         }
-        if (request.getCodeVerifier() == null || request.getCodeVerifier().isBlank()) {
+        if (codeVerifier == null || codeVerifier.isBlank()) {
             throw new CustomException(ErrorCode.OAUTH2_MISSING_CODE_VERIFIER);
         }
 
-        Map<String, Object> tokenResponse = exchangeAuthorizationCode(request);
-        String accessToken = tokenResponse != null ? (String) tokenResponse.get("access_token") : null;
-        String idToken = tokenResponse != null ? (String) tokenResponse.get("id_token") : null;
-        validateGoogleIdToken(idToken);
-
-        if (accessToken == null || accessToken.isBlank()) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
-        }
-        return accessToken;
+        String clientId = resolveGoogleClientId(redirectUri);
+        Map<String, Object> tokenResponse = exchangeAuthorizationCode(code, redirectUri, codeVerifier, clientId);
+        return extractAndValidateAccessToken(tokenResponse, clientId);
     }
 
-    @Override
+    public String exchangeSdkAuthCode(String code) {
+        if (code == null || code.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT, "code는 필수입니다.");
+        }
+
+        String clientId = firstNonBlank(googleWebClientId, googleDefaultClientId);
+        if (clientId == null || clientId.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT, "Google server clientId가 없습니다.");
+        }
+
+        Map<String, Object> tokenResponse = exchangeSdkAuthorizationCode(code, clientId);
+        return extractAndValidateAccessToken(tokenResponse, clientId);
+    }
+
     public Map<String, Object> fetchUserInfo(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
@@ -94,15 +103,21 @@ public class GoogleOAuth2ProviderClient implements OAuth2ProviderClient {
         }
     }
 
-    private Map<String, Object> exchangeAuthorizationCode(OAuth2CodeRequest request) {
-        log.info("OAuth2 token exchange: provider=google, clientId={}", googleClientId);
+    private Map<String, Object> exchangeAuthorizationCode(
+            String code,
+            String redirectUri,
+            String codeVerifier,
+            String clientId
+    ) {
+        log.info("OAuth2 token exchange: provider=google, clientId={}, flow=pkce", clientId);
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "authorization_code");
-        params.add("code", request.getCode());
-        params.add("client_id", googleClientId);
-        params.add("redirect_uri", request.getRedirectUri());
-        params.add("code_verifier", request.getCodeVerifier());
-        if (googleClientSecret != null && !googleClientSecret.isBlank()) {
+        params.add("code", code);
+        params.add("client_id", clientId);
+        params.add("redirect_uri", redirectUri);
+        params.add("code_verifier", codeVerifier);
+
+        if (shouldAttachClientSecret(clientId)) {
             params.add("client_secret", googleClientSecret);
         }
 
@@ -126,7 +141,111 @@ public class GoogleOAuth2ProviderClient implements OAuth2ProviderClient {
         }
     }
 
-    private void validateGoogleIdToken(String idToken) {
+    private Map<String, Object> exchangeSdkAuthorizationCode(String code, String clientId) {
+        if (googleClientSecret == null || googleClientSecret.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT, "Google client secret이 필요합니다.");
+        }
+
+        log.info("OAuth2 token exchange: provider=google, clientId={}, flow=sdk_server_auth_code", clientId);
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("grant_type", "authorization_code");
+        params.add("code", code);
+        params.add("client_id", clientId);
+        params.add("client_secret", googleClientSecret);
+        if (googleSdkRedirectUri != null && !googleSdkRedirectUri.isBlank()) {
+            params.add("redirect_uri", googleSdkRedirectUri.trim());
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(params, headers);
+
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    googleTokenUri,
+                    HttpMethod.POST,
+                    entity,
+                    MAP_RESPONSE_TYPE
+            );
+            log.info("OAuth2 token exchange success: provider=google, flow=sdk_server_auth_code, status={}",
+                    response.getStatusCode());
+            return response.getBody();
+        } catch (HttpClientErrorException ex) {
+            log.warn("OAuth2 token exchange failed: provider=google, flow=sdk_server_auth_code, status={}, body={}",
+                    ex.getStatusCode(), ex.getResponseBodyAsString());
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+    }
+
+    private boolean shouldAttachClientSecret(String resolvedClientId) {
+        String webClientId = firstNonBlank(googleWebClientId, googleDefaultClientId);
+        return googleClientSecret != null
+                && !googleClientSecret.isBlank()
+                && webClientId != null
+                && !webClientId.isBlank()
+                && webClientId.equals(resolvedClientId);
+    }
+
+    private String resolveGoogleClientId(String redirectUri) {
+        String clientId = resolveGoogleClientIdByRedirectUri(redirectUri);
+        if (clientId != null && !clientId.isBlank()) {
+            return clientId;
+        }
+        throw new CustomException(ErrorCode.INVALID_INPUT, "redirectUri에 매핑되는 Google clientId가 없습니다.");
+    }
+
+    private String extractAndValidateAccessToken(Map<String, Object> tokenResponse, String expectedClientId) {
+        String accessToken = tokenResponse != null ? (String) tokenResponse.get("access_token") : null;
+        String idToken = tokenResponse != null ? (String) tokenResponse.get("id_token") : null;
+        validateGoogleIdToken(idToken, expectedClientId);
+
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+        return accessToken;
+    }
+
+    private String resolveGoogleClientIdByRedirectUri(String redirectUri) {
+        if (redirectUri == null || redirectUri.isBlank()) {
+            return null;
+        }
+        String requestRedirectUri = normalizeRedirectUri(redirectUri);
+        String configuredWebRedirectUri = normalizeRedirectUri(googleWebRedirectUri);
+        if (requestRedirectUri == null || configuredWebRedirectUri == null) {
+            return null;
+        }
+        if (requestRedirectUri.equals(configuredWebRedirectUri)) {
+            return firstNonBlank(googleWebClientId, googleDefaultClientId);
+        }
+        return null;
+    }
+
+    private String normalizeRedirectUri(String redirectUri) {
+        if (redirectUri == null) {
+            return null;
+        }
+        String normalized = redirectUri.trim();
+        if (normalized.isBlank()) {
+            return null;
+        }
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private void validateGoogleIdToken(String idToken, String expectedClientId) {
         if (idToken == null || idToken.isBlank()) {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
@@ -151,14 +270,15 @@ public class GoogleOAuth2ProviderClient implements OAuth2ProviderClient {
             }
             String aud = String.valueOf(body.get("aud"));
             String iss = String.valueOf(body.get("iss"));
-            if (!googleClientId.equals(aud)) {
+            if (!expectedClientId.equals(aud)) {
                 throw new CustomException(ErrorCode.INVALID_TOKEN);
             }
             if (!"accounts.google.com".equals(iss) && !"https://accounts.google.com".equals(iss)) {
                 throw new CustomException(ErrorCode.INVALID_TOKEN);
             }
-            if (body.get("azp") != null && !googleClientId.equals(String.valueOf(body.get("azp")))) {
-                throw new CustomException(ErrorCode.INVALID_TOKEN);
+            if (body.get("azp") != null && !expectedClientId.equals(String.valueOf(body.get("azp")))) {
+                log.info("Google id_token azp differs from expected clientId. azp={}, expectedClientId={}",
+                        body.get("azp"), expectedClientId);
             }
             validateGoogleTokenTimes(body);
         } catch (HttpClientErrorException ex) {
