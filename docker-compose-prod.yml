@@ -1,19 +1,4 @@
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: sparring-redis
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    restart: unless-stopped
-    networks:
-      - sparring-network
-
   app:
     image: ghcr.io/${GITHUB_REPOSITORY}:${IMAGE_TAG}
     container_name: sparring-app
@@ -27,7 +12,9 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
+      - REDIS_USERNAME=${REDIS_USERNAME:-}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_SSL_ENABLED=${REDIS_SSL_ENABLED:-false}
       - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}
       - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID}
@@ -44,9 +31,6 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_API_URL=${GEMINI_API_URL}
       - ML_SERVER_URL=${ML_SERVER_URL}
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 15s
@@ -75,9 +59,6 @@ services:
       retries: 3
     networks:
       - sparring-network
-
-volumes:
-  redis_data:
 
 networks:
   sparring-network:
