@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -25,6 +26,9 @@ public class RedisConfig {
     @Value("${spring.data.redis.username:}")
     private String username;
 
+    @Value("${spring.data.redis.ssl.enabled:false}")
+    private boolean sslEnabled;
+
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
@@ -34,7 +38,12 @@ public class RedisConfig {
         if (password != null && !password.isBlank()) {
             config.setPassword(RedisPassword.of(password));
         }
-        return new LettuceConnectionFactory(config);
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder =
+                LettuceClientConfiguration.builder();
+        if (sslEnabled) {
+            clientConfigBuilder.useSsl();
+        }
+        return new LettuceConnectionFactory(config, clientConfigBuilder.build());
     }
 
     @Bean
