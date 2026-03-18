@@ -149,8 +149,16 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             chmod +x ~/server/scripts/deploy.sh
+            chmod +x ~/server/scripts/init-ssl.sh
             set -a; source ~/server/.env; set +a
+
+            # 최초 1회: 인증서가 없으면 먼저 발급
+            if [ ! -f "$HOME/server/certbot/conf/live/${DOMAIN}/fullchain.pem" ]; then
+              echo ">> SSL certificate not found. running init-ssl.sh..."
+              bash ~/server/scripts/init-ssl.sh
+            fi
 
             export IMAGE_TAG="${{ needs.build-image.outputs.image-tag }}"
             export GITHUB_REPOSITORY="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
