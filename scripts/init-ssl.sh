@@ -15,34 +15,24 @@ echo "=============================="
 # 1. Certbot 디렉토리 생성
 mkdir -p "$DEPLOY_DIR/certbot/www"
 mkdir -p "$DEPLOY_DIR/certbot/conf"
-# 2. HTTP용 nginx 먼저 기동 (Certbot 챌린지용)
-echo ">> HTTP nginx 기동 (인증서 발급용)..."
-docker run --rm -d \
-  --name nginx-certbot-temp \
-  -p 80:80 \
-  -v "$DEPLOY_DIR/certbot/www:/var/www/certbot" \
-  -v "$DEPLOY_DIR/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
-  nginx:alpine
+# 2. 80 포트 점유 컨테이너 정리 (standalone 모드 필요)
+docker rm -f nginx-certbot-temp 2>/dev/null || true
+docker stop sparring-nginx 2>/dev/null || true
 
-sleep 3
-
-# 3. Certbot으로 인증서 발급
+# 3. Certbot standalone으로 인증서 발급
 echo ">> Let's Encrypt 인증서 발급..."
 docker run --rm \
+  -p 80:80 \
   -v "$DEPLOY_DIR/certbot/conf:/etc/letsencrypt" \
-  -v "$DEPLOY_DIR/certbot/www:/var/www/certbot" \
   certbot/certbot certonly \
-    --webroot \
-    --webroot-path=/var/www/certbot \
+    --standalone \
+    --preferred-challenges http \
     --email "$EMAIL" \
     --agree-tos \
     --no-eff-email \
     -d "$DOMAIN"
 
-# 4. 임시 nginx 종료
-docker stop nginx-certbot-temp 2>/dev/null || true
-
-# 5. 전체 스택 기동 (nginx SSL + certbot 자동갱신 포함)
+# 4. 전체 스택 기동 (nginx SSL + certbot 자동갱신 포함)
 echo ">> SSL 모드로 전체 스택 기동..."
 docker compose -f "$DEPLOY_DIR/docker-compose-prod.yml" up -d
 
