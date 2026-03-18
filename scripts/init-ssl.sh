@@ -1,7 +1,9 @@
+#!/usr/bin/env bash
+
 set -e
 
-DOMAIN="${DOMAIN:?'DOMAIN 환경변수를 설정하세요. ex) DOMAIN=api.sparring.kr'}"
-EMAIL="${EMAIL:?'EMAIL 환경변수를 설정하세요. ex) EMAIL=admin@sparring.kr'}"
+DOMAIN="${DOMAIN:?'DOMAIN 환경변수를 설정하세요. ex) DOMAIN=api.sparring.site'}"
+EMAIL="${EMAIL:?'EMAIL 환경변수를 설정하세요. ex) EMAIL=admin@sparring.site'}"
 DEPLOY_DIR="$HOME/server"
 
 echo "=============================="
@@ -13,13 +15,7 @@ echo "=============================="
 # 1. Certbot 디렉토리 생성
 mkdir -p "$DEPLOY_DIR/certbot/www"
 mkdir -p "$DEPLOY_DIR/certbot/conf"
-
-# 2. nginx.ssl.conf에서 도메인 치환
-echo ">> nginx.ssl.conf 도메인 설정..."
-sed "s/\${DOMAIN}/$DOMAIN/g" "$DEPLOY_DIR/nginx/nginx.ssl.conf" > "$DEPLOY_DIR/nginx/nginx.ssl.conf.tmp"
-mv "$DEPLOY_DIR/nginx/nginx.ssl.conf.tmp" "$DEPLOY_DIR/nginx/nginx.ssl.conf.applied"
-
-# 3. HTTP용 nginx 먼저 기동 (Certbot 챌린지용)
+# 2. HTTP용 nginx 먼저 기동 (Certbot 챌린지용)
 echo ">> HTTP nginx 기동 (인증서 발급용)..."
 docker run --rm -d \
   --name nginx-certbot-temp \
@@ -30,7 +26,7 @@ docker run --rm -d \
 
 sleep 3
 
-# 4. Certbot으로 인증서 발급
+# 3. Certbot으로 인증서 발급
 echo ">> Let's Encrypt 인증서 발급..."
 docker run --rm \
   -v "$DEPLOY_DIR/certbot/conf:/etc/letsencrypt" \
@@ -43,22 +39,14 @@ docker run --rm \
     --no-eff-email \
     -d "$DOMAIN"
 
-# 5. 임시 nginx 종료
+# 4. 임시 nginx 종료
 docker stop nginx-certbot-temp 2>/dev/null || true
 
-# 6. SSL 설정으로 nginx 재기동
-echo ">> SSL 모드로 전환..."
-# .env에 도메인 정보 추가 (없으면 추가)
-if ! grep -q "^DOMAIN=" "$DEPLOY_DIR/.env" 2>/dev/null; then
-  echo "DOMAIN=$DOMAIN" >> "$DEPLOY_DIR/.env"
-fi
-
-# 7. 전체 스택 재기동 (nginx SSL 포함)
+# 5. 전체 스택 기동 (nginx SSL + certbot 자동갱신 포함)
+echo ">> SSL 모드로 전체 스택 기동..."
 docker compose -f "$DEPLOY_DIR/docker-compose-prod.yml" up -d
 
 echo ""
-echo "SSL 설정 완료"
-echo "   https://$DOMAIN 으로 접근 가능합니다."
-echo ""
-echo "인증서 자동 갱신은 docker-compose-prod.yml의"
-echo "   certbot 컨테이너가 처리합니다. (90일마다 자동 갱신)"
+echo "SSL 설정 완료!"
+echo "  https://$DOMAIN 으로 접근 가능합니다."
+echo "  certbot 컨테이너가 12시간마다 자동 갱신합니다."
