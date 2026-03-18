@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 set -e
 
 DEPLOY_DIR="$HOME/server"
@@ -28,6 +30,7 @@ if [ ! -f "$COMPOSE_FILE" ]; then
 fi
 
 REQUIRED_VARS=(
+  DOMAIN
   SPRING_PROFILES_ACTIVE
   DB_URL
   DB_USERNAME
