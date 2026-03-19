@@ -42,7 +42,7 @@ public class SurveyController {
                     mediaType = "application/json",
                     examples = {
                             @ExampleObject(
-                                    name = "Survey (DETAILED)",
+                                    name = "Survey",
                                     value = """
                                             {
                                               "answers": [
@@ -83,7 +83,7 @@ public class SurveyController {
                     mediaType = "application/json",
                     examples = {
                             @ExampleObject(
-                                    name = "Survey (DETAILED)",
+                                    name = "Survey",
                                     value = """
                                             {
                                               "questionKey": "MEAL_FREQUENCY",
@@ -92,7 +92,7 @@ public class SurveyController {
                                             """
                             ),
                             @ExampleObject(
-                                    name = "Survey (DETAILED Multiple)",
+                                    name = "Survey Multiple",
                                     value = """
                                             {
                                               "questionKey": "EXERCISE_PLACE",

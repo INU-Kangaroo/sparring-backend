@@ -49,11 +49,9 @@ public class SurveyService {
      * 설문 문항 조회
      */
     public SurveyQuestionsResponse getSurveyQuestions() {
-        Survey survey = surveyRepository.findBySurveyType(SurveyType.SURVEY)
+        surveyRepository.findBySurveyType(SurveyType.SURVEY)
                 .orElseThrow(() -> new CustomException(ErrorCode.SURVEY_NOT_FOUND));
-        List<Question> questions = questionRepository.findBySurveyTypeAndQuestionStage(
-                SurveyType.SURVEY, QuestionStage.DETAILED
-        );
+        List<Question> questions = questionRepository.findBySurveyType(SurveyType.SURVEY);
         surveyAnswerValidator.validateHealthProfileFieldMappings(questions);
 
         List<QuestionResponse> responses = questions.stream()
@@ -73,7 +71,7 @@ public class SurveyService {
     @Transactional
     public SurveySubmitResponse submitSurvey(Long userId, SurveySubmitRequest request) {
         // 이미 완료한 설문인지 확인
-        if (answerRepository.existsByUserIdAndSurveyTypeAndQuestionStage(userId, SurveyType.SURVEY, QuestionStage.DETAILED)) {
+        if (answerRepository.existsByUserIdAndSurveyType(userId, SurveyType.SURVEY)) {
             throw new CustomException(ErrorCode.SURVEY_ALREADY_COMPLETED);
         }
 
@@ -81,13 +79,10 @@ public class SurveyService {
         surveyRepository.findBySurveyType(SurveyType.SURVEY)
                 .orElseThrow(() -> new CustomException(ErrorCode.SURVEY_NOT_FOUND));
 
-        List<Question> questions = questionRepository.findBySurveyTypeAndQuestionStage(
-                SurveyType.SURVEY, QuestionStage.DETAILED
-        );
+        List<Question> questions = questionRepository.findBySurveyType(SurveyType.SURVEY);
         surveyAnswerValidator.validateHealthProfileFieldMappings(questions);
 
-        Map<String, Question> questionMap = questions.stream()
-                .collect(Collectors.toMap(Question::getQuestionKey, question -> question));
+        Map<String, Question> questionMap = toQuestionMap(questions);
         surveyAnswerValidator.validateSubmittedAnswers(request.getAnswers(), questionMap);
 
         // User 조회
@@ -124,10 +119,9 @@ public class SurveyService {
     @Transactional
     public AnswerResponse updateAnswer(Long userId, UpdateAnswerRequest request) {
         Question question = questionRepository
-                .findByQuestionKeyAndSurveyTypeAndQuestionStage(
+                .findByQuestionKeyAndSurveyType(
                         request.getQuestionKey(),
-                        SurveyType.SURVEY,
-                        QuestionStage.DETAILED
+                        SurveyType.SURVEY
                 )
                 .orElseThrow(() -> new CustomException(ErrorCode.QUESTION_NOT_FOUND));
 
@@ -146,9 +140,7 @@ public class SurveyService {
      * 설문 응답 조회
      */
     public SurveyAnswersResponse getSurveyAnswers(Long userId) {
-        List<Answer> answers = answerRepository.findByUserIdAndSurveyTypeAndQuestionStage(
-                userId, SurveyType.SURVEY, QuestionStage.DETAILED
-        );
+        List<Answer> answers = answerRepository.findByUserIdAndSurveyType(userId, SurveyType.SURVEY);
 
         if (answers.isEmpty()) {
             throw new CustomException(ErrorCode.SURVEY_NOT_COMPLETED);
@@ -165,9 +157,7 @@ public class SurveyService {
      * 설문 완료 여부 확인
      */
     public Boolean checkSurveyCompleted(Long userId) {
-        return answerRepository.existsByUserIdAndSurveyTypeAndQuestionStage(
-                userId, SurveyType.SURVEY, QuestionStage.DETAILED
-        );
+        return answerRepository.existsByUserIdAndSurveyType(userId, SurveyType.SURVEY);
     }
 
     /**
@@ -236,6 +226,15 @@ public class SurveyService {
                     ErrorCode.INVALID_INPUT,
                     "healthProfileField 검증 실패: " + String.join(", ", invalidFields)
             );
+        }
+    }
+
+    private Map<String, Question> toQuestionMap(List<Question> questions) {
+        try {
+            return questions.stream()
+                    .collect(Collectors.toMap(Question::getQuestionKey, question -> question));
+        } catch (IllegalStateException e) {
+            throw new CustomException(ErrorCode.INVALID_INPUT, "중복 questionKey가 존재합니다.");
         }
     }
 
