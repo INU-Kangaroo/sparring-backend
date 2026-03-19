@@ -16,9 +16,11 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -94,26 +96,36 @@ public class SurveyAnswerValidator {
         }
 
         QuestionType questionType = question.getQuestionType();
-        Set<String> optionCodes = parseOptionCodes(question);
+        OptionLookup optionLookup = parseOptionLookup(question);
         return switch (questionType) {
             case TEXT -> toScalarString(value, question.getQuestionKey(), questionType);
-            case SINGLE_CHOICE -> toSingleChoiceCode(value, question.getQuestionKey(), optionCodes);
+            case SINGLE_CHOICE -> toSingleChoiceCode(value, question.getQuestionKey(), optionLookup);
             case NUMBER -> toNumberLikeString(value, question.getQuestionKey());
-            case MULTIPLE_CHOICE -> toJsonStringArrayOfCodes(value, question.getQuestionKey(), optionCodes);
+            case MULTIPLE_CHOICE -> toJsonStringArrayOfCodes(value, question.getQuestionKey(), optionLookup);
         };
     }
 
-    private Set<String> parseOptionCodes(Question question) {
+    private OptionLookup parseOptionLookup(Question question) {
         String options = question.getOptions();
         if (options == null || options.isBlank()) {
-            return Set.of();
+            return OptionLookup.empty();
         }
         try {
             List<OptionItem> optionItems = OBJECT_MAPPER.readValue(options, new TypeReference<List<OptionItem>>() {});
-            return optionItems.stream()
-                    .map(OptionItem::getCode)
-                    .filter(code -> code != null && !code.isBlank())
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            Set<String> allowedCodes = new LinkedHashSet<>();
+            Map<String, String> labelToCode = new HashMap<>();
+            for (OptionItem item : optionItems) {
+                if (item.getCode() == null || item.getCode().isBlank()) {
+                    continue;
+                }
+                String code = item.getCode().trim();
+                allowedCodes.add(code);
+
+                if (item.getLabel() != null && !item.getLabel().isBlank()) {
+                    labelToCode.put(item.getLabel().trim(), code);
+                }
+            }
+            return new OptionLookup(allowedCodes, labelToCode);
         } catch (IOException e) {
             throw new CustomException(ErrorCode.INVALID_INPUT, "문항(" + question.getQuestionKey() + ") 옵션 포맷이 올바르지 않습니다.");
         }
@@ -133,15 +145,9 @@ public class SurveyAnswerValidator {
         return text;
     }
 
-    private String toSingleChoiceCode(JsonNode value, String questionKey, Set<String> optionCodes) {
-        String code = toScalarString(value, questionKey, QuestionType.SINGLE_CHOICE);
-        if (!optionCodes.isEmpty() && !optionCodes.contains(code)) {
-            throw new CustomException(
-                    ErrorCode.INVALID_INPUT,
-                    "문항(" + questionKey + ")의 SINGLE_CHOICE 값이 옵션 code에 없습니다: " + code
-            );
-        }
-        return code;
+    private String toSingleChoiceCode(JsonNode value, String questionKey, OptionLookup optionLookup) {
+        String raw = toScalarString(value, questionKey, QuestionType.SINGLE_CHOICE);
+        return normalizeOptionValue(raw, questionKey, "SINGLE_CHOICE", optionLookup);
     }
 
     private String toNumberLikeString(JsonNode value, String questionKey) {
@@ -158,7 +164,7 @@ public class SurveyAnswerValidator {
         return text;
     }
 
-    private String toJsonStringArrayOfCodes(JsonNode value, String questionKey, Set<String> optionCodes) {
+    private String toJsonStringArrayOfCodes(JsonNode value, String questionKey, OptionLookup optionLookup) {
         if (!value.isArray()) {
             throw new CustomException(
                     ErrorCode.INVALID_INPUT,
@@ -174,25 +180,67 @@ public class SurveyAnswerValidator {
                         "문항(" + questionKey + ")의 MULTIPLE_CHOICE 항목은 문자열이어야 합니다."
                 );
             }
-            String code = node.asText().trim();
-            if (code.isBlank()) {
+            String raw = node.asText().trim();
+            if (raw.isBlank()) {
                 throw new CustomException(
                         ErrorCode.INVALID_INPUT,
                         "문항(" + questionKey + ")의 MULTIPLE_CHOICE 항목은 비어있을 수 없습니다."
                 );
             }
-            if (!optionCodes.isEmpty() && !optionCodes.contains(code)) {
-                throw new CustomException(
-                        ErrorCode.INVALID_INPUT,
-                        "문항(" + questionKey + ")의 MULTIPLE_CHOICE 값이 옵션 code에 없습니다: " + code
-                );
-            }
-            codes.add(code);
+            codes.add(normalizeOptionValue(raw, questionKey, "MULTIPLE_CHOICE", optionLookup));
         }
         try {
             return OBJECT_MAPPER.writeValueAsString(codes);
         } catch (JsonProcessingException e) {
             throw new CustomException(ErrorCode.INVALID_INPUT, "문항(" + questionKey + ") 배열 직렬화에 실패했습니다.");
+        }
+    }
+
+    private String normalizeOptionValue(
+            String raw,
+            String questionKey,
+            String questionType,
+            OptionLookup optionLookup
+    ) {
+        if (optionLookup.allowedCodes().isEmpty()) {
+            return raw;
+        }
+
+        String matchedCode = optionLookup.findCode(raw);
+        if (matchedCode != null) {
+            return matchedCode;
+        }
+
+        throw new CustomException(
+                ErrorCode.INVALID_INPUT,
+                "문항(" + questionKey + ")의 " + questionType + " 값이 옵션에 없습니다: " + raw
+        );
+    }
+
+    private record OptionLookup(Set<String> allowedCodes, Map<String, String> labelToCode) {
+        static OptionLookup empty() {
+            return new OptionLookup(Set.of(), Map.of());
+        }
+
+        String findCode(String raw) {
+            if (raw == null) {
+                return null;
+            }
+            String trimmed = raw.trim();
+            if (trimmed.isBlank()) {
+                return null;
+            }
+
+            if (allowedCodes.contains(trimmed)) {
+                return trimmed;
+            }
+
+            String normalizedUpper = trimmed.toUpperCase(Locale.ROOT).replace(' ', '_');
+            if (allowedCodes.contains(normalizedUpper)) {
+                return normalizedUpper;
+            }
+
+            return labelToCode.get(trimmed);
         }
     }
 }
