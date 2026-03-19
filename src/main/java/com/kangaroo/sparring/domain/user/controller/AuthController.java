@@ -6,7 +6,6 @@ import com.kangaroo.sparring.domain.user.dto.req.KakaoSdkLoginRequest;
 import com.kangaroo.sparring.domain.user.dto.req.LoginRequest;
 import com.kangaroo.sparring.domain.user.dto.req.OAuth2PkceLoginRequest;
 import com.kangaroo.sparring.domain.user.dto.req.SignupRequest;
-import com.kangaroo.sparring.domain.user.dto.req.SocialSignupCompleteRequest;
 import com.kangaroo.sparring.domain.user.dto.req.VerifyCodeRequest;
 import com.kangaroo.sparring.domain.user.dto.res.AuthResponse;
 import com.kangaroo.sparring.domain.user.dto.res.EmailResponse;
@@ -18,7 +17,6 @@ import com.kangaroo.sparring.domain.user.service.auth.EmailVerificationResult;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import com.kangaroo.sparring.global.response.MessageResponse;
-import com.kangaroo.sparring.global.security.principal.PrincipalResolver;
 import com.kangaroo.sparring.global.security.principal.UserIdPrincipal;
 import com.kangaroo.sparring.global.security.oauth2.service.OAuth2CodeAuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -167,15 +165,7 @@ public class AuthController {
                                       "password": "password123!",
                                       "username": "홍길동",
                                       "birthDate": "1995-03-10",
-                                      "gender": "MALE",
-                                      "height": 175.5,
-                                      "weight": 70.2,
-                                      "bloodSugarStatus": "NORMAL",
-                                      "bloodPressureStatus": "NORMAL",
-                                      "medications": "없음",
-                                      "allergies": "없음",
-                                      "healthGoal": "혈당 관리",
-                                      "hasFamilyHypertension": false
+                                      "gender": "MALE"
                                     }
                                     """
                     )
@@ -279,34 +269,6 @@ public class AuthController {
     )
     public ResponseEntity<AuthResponse> kakaoSdkLogin(@Valid @RequestBody KakaoSdkLoginRequest request) {
         return ResponseEntity.ok(oAuth2CodeAuthService.loginWithKakaoSdkAccessToken(request));
-    }
-
-    @Operation(summary = "소셜 회원가입 완료", description = "소셜 로그인 후 기본 프로필 입력으로 회원가입 완료 처리")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Created",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(
-                                    name = "Success",
-                                    value = """
-                                            {
-                                              "message": "회원가입이 완료되었습니다."
-                                            }
-                                            """
-                            )
-                    )
-            )
-    })
-    @PostMapping("/social/complete")
-    public ResponseEntity<MessageResponse> completeSocialSignup(
-            @AuthenticationPrincipal UserIdPrincipal principal,
-            @Valid @RequestBody SocialSignupCompleteRequest request
-    ) {
-        Long userId = PrincipalResolver.resolveUserId(principal);
-        userRegistrationService.completeSocialSignup(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(MessageResponse.of("회원가입이 완료되었습니다."));
     }
 
     /**

@@ -17,3 +17,8 @@ logging:
     com.kangaroo.sparring: DEBUG
     org.hibernate.SQL: DEBUG
     org.springframework.security: DEBUG
+
+app:
+  auth:
+    signup:
+      require-email-verification: false
