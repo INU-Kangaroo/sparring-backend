@@ -69,9 +69,9 @@ public class UserDashboardResponse {
         private Gender gender;
 
         @Schema(description = "키(cm)", example = "172.3", nullable = true)
-        private BigDecimal heightCm;
+        private BigDecimal height;
 
         @Schema(description = "몸무게(kg)", example = "68.1", nullable = true)
-        private BigDecimal weightKg;
+        private BigDecimal weight;
     }
 }
