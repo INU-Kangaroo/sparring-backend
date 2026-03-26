@@ -41,6 +41,29 @@ public interface BloodSugarLogRepository extends JpaRepository<BloodSugarLog, Lo
             LocalDateTime endDate
     );
 
+    @Query("SELECT COUNT(b.id) " +
+            "FROM BloodSugarLog b " +
+            "WHERE b.user.id = :userId " +
+            "AND b.isDeleted = false")
+    Long countByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT AVG(b.glucoseLevel) " +
+            "FROM BloodSugarLog b " +
+            "WHERE b.user.id = :userId " +
+            "AND b.isDeleted = false")
+    Double findAverageGlucoseByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT AVG(b.glucoseLevel) " +
+            "FROM BloodSugarLog b " +
+            "WHERE b.user.id = :userId " +
+            "AND b.isDeleted = false " +
+            "AND b.measurementTime BETWEEN :startDateTime AND :endDateTime")
+    Double findAverageGlucoseByUserIdAndDateRange(
+            @Param("userId") Long userId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
     // 특정 기간 조회 (연/월 모두 공통 사용)
 
     @Query("SELECT function('month', b.measurementTime) AS month, " +

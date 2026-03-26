@@ -88,6 +88,12 @@ public class User extends BaseEntity {
         }
     }
 
+    public void updateProfileImageUrl(String profileImageUrl) {
+        if (profileImageUrl != null && !profileImageUrl.isBlank()) {
+            this.profileImageUrl = profileImageUrl;
+        }
+    }
+
     public void updatePassword(String encodedPassword) {
         if (encodedPassword != null && !encodedPassword.isBlank()) {
             this.password = encodedPassword;
