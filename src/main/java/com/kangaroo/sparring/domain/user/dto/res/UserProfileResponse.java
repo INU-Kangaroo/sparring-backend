@@ -2,6 +2,7 @@ package com.kangaroo.sparring.domain.user.dto.res;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.user.entity.User;
+import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.domain.user.type.SocialProvider;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -29,17 +30,24 @@ public class UserProfileResponse {
     @Schema(description = "생년월일", example = "1995-03-12")
     private LocalDate birthDate;
 
+    @Schema(description = "성별", example = "FEMALE", nullable = true)
+    private Gender gender;
+
     @Schema(description = "키(cm)", example = "175.5")
     private BigDecimal height;
 
     @Schema(description = "몸무게(kg)", example = "70.2")
     private BigDecimal weight;
 
+    @Schema(description = "프로필 이미지 URL", example = "https://cdn.example.com/profile/1.png", nullable = true)
+    private String profileImageUrl;
+
     @Schema(description = "소셜 로그인 제공자", example = "KAKAO")
     private SocialProvider socialProvider;
 
     public static UserProfileResponse of(User user, HealthProfile profile) {
         LocalDate birthDate = profile != null ? profile.getBirthDate() : user.getBirthDate();
+        Gender gender = profile != null && profile.getGender() != null ? profile.getGender() : user.getGender();
         BigDecimal height = profile != null ? profile.getHeight() : null;
         BigDecimal weight = profile != null ? profile.getWeight() : null;
 
@@ -48,8 +56,10 @@ public class UserProfileResponse {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .birthDate(birthDate)
+                .gender(gender)
                 .height(height)
                 .weight(weight)
+                .profileImageUrl(user.getProfileImageUrl())
                 .socialProvider(user.getProvider())
                 .build();
     }
