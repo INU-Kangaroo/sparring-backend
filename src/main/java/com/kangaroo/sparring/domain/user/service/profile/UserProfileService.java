@@ -68,8 +68,8 @@ public class UserProfileService {
                         .name(user.getUsername())
                         .birthDate(birthDate)
                         .gender(gender)
-                        .heightCm(height)
-                        .weightKg(weight)
+                        .height(height)
+                        .weight(weight)
                         .build())
                 .build();
     }
