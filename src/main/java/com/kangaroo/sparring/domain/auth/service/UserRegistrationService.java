@@ -1,11 +1,11 @@
-package com.kangaroo.sparring.domain.user.service.registration;
+package com.kangaroo.sparring.domain.auth.service;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
-import com.kangaroo.sparring.domain.user.dto.req.SignupRequest;
+import com.kangaroo.sparring.domain.auth.dto.req.SignupRequest;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
-import com.kangaroo.sparring.domain.user.service.auth.EmailService;
+import com.kangaroo.sparring.domain.auth.service.EmailService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

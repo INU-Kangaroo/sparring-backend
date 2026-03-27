@@ -1,11 +1,11 @@
 package com.kangaroo.sparring.global.security.oauth2.service;
 
-import com.kangaroo.sparring.domain.user.dto.req.GoogleSdkLoginRequest;
-import com.kangaroo.sparring.domain.user.dto.req.KakaoSdkLoginRequest;
-import com.kangaroo.sparring.domain.user.dto.req.OAuth2PkceLoginRequest;
-import com.kangaroo.sparring.domain.user.dto.res.AuthResponse;
+import com.kangaroo.sparring.domain.auth.dto.req.GoogleSdkLoginRequest;
+import com.kangaroo.sparring.domain.auth.dto.req.KakaoSdkLoginRequest;
+import com.kangaroo.sparring.domain.auth.dto.req.OAuth2PkceLoginRequest;
+import com.kangaroo.sparring.domain.auth.dto.res.AuthResponse;
 import com.kangaroo.sparring.domain.user.entity.User;
-import com.kangaroo.sparring.domain.user.service.oauth2.OAuth2UserService;
+import com.kangaroo.sparring.domain.auth.service.OAuth2UserService;
 import com.kangaroo.sparring.global.security.jwt.JwtUtil;
 import com.kangaroo.sparring.global.security.oauth2.user.OAuth2UserInfo;
 import com.kangaroo.sparring.global.security.oauth2.user.OAuth2UserInfoFactory;
