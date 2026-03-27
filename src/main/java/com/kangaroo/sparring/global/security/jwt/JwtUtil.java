@@ -71,6 +71,16 @@ public class JwtUtil {
         return Long.parseLong(claims.getSubject());
     }
 
+    public String getEmailFromToken(String token) {
+        Claims claims = parseClaims(token);
+        return claims.get("email", String.class);
+    }
+
+    public Date getIssuedAtFromToken(String token) {
+        Claims claims = parseClaims(token);
+        return claims.getIssuedAt();
+    }
+
     /**
      * 토큰 타입 확인
      */

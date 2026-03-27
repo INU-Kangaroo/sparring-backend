@@ -38,10 +38,9 @@ public class CurrentUser implements UserDetails, OAuth2User, UserIdPrincipal {
     public static CurrentUser fromJwt(
             Long userId,
             String email,
-            String password,
             Collection<? extends GrantedAuthority> authorities
     ) {
-        return new CurrentUser(userId, email, email, password, authorities, null, null);
+        return new CurrentUser(userId, email, email, null, authorities, null, null);
     }
 
     public static CurrentUser fromOAuth2(
