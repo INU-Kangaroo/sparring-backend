@@ -1,8 +1,8 @@
-package com.kangaroo.sparring.domain.exercise.catalog.entity;
+package com.kangaroo.sparring.domain.catalog.entity;
 
 import com.kangaroo.sparring.domain.common.BaseEntity;
-import com.kangaroo.sparring.domain.exercise.catalog.type.ExerciseCategory;
-import com.kangaroo.sparring.domain.exercise.catalog.type.ExerciseImpactLevel;
+import com.kangaroo.sparring.domain.catalog.type.ExerciseCategory;
+import com.kangaroo.sparring.domain.catalog.type.ExerciseImpactLevel;
 import com.kangaroo.sparring.domain.common.type.ExerciseLocation;
 import com.kangaroo.sparring.domain.common.type.ExerciseIntensity;
 import jakarta.persistence.*;

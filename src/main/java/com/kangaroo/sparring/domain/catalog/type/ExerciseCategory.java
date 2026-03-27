@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.exercise.catalog.type;
+package com.kangaroo.sparring.domain.catalog.type;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.food.catalog.entity;
+package com.kangaroo.sparring.domain.catalog.entity;
 
 import com.kangaroo.sparring.domain.common.BaseEntity;
 import jakarta.persistence.*;

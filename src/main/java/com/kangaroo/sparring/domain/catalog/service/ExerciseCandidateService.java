@@ -1,13 +1,13 @@
-package com.kangaroo.sparring.domain.exercise.catalog.service;
+package com.kangaroo.sparring.domain.catalog.service;
 
-import com.kangaroo.sparring.domain.exercise.catalog.entity.Exercise;
-import com.kangaroo.sparring.domain.exercise.catalog.repository.ExerciseRepository;
-import com.kangaroo.sparring.domain.exercise.catalog.type.ExerciseCategory;
-import com.kangaroo.sparring.domain.exercise.catalog.type.ExerciseImpactLevel;
+import com.kangaroo.sparring.domain.catalog.entity.Exercise;
+import com.kangaroo.sparring.domain.catalog.repository.ExerciseRepository;
+import com.kangaroo.sparring.domain.catalog.type.ExerciseCategory;
+import com.kangaroo.sparring.domain.catalog.type.ExerciseImpactLevel;
 import com.kangaroo.sparring.domain.common.type.ExerciseLocation;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
 import com.kangaroo.sparring.domain.common.type.ExerciseIntensity;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
 import com.kangaroo.sparring.domain.survey.type.BloodPressureStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,7 @@ public class ExerciseCandidateService {
      */
     public List<Exercise> findCandidates(
             HealthProfile healthProfile,
-            List<BloodPressureLog> recentBloodPressures,
+            List<BloodPressureRecord> recentBloodPressures,
             ExerciseIntensity intensity,
             ExerciseLocation requestLocation
     ) {
@@ -94,7 +94,7 @@ public class ExerciseCandidateService {
     }
 
     // 고충격 운동 제외 여부: 관절 질환 키워드 or 혈압 160 이상
-    private boolean shouldExcludeHighImpact(HealthProfile hp, List<BloodPressureLog> bpLogs) {
+    private boolean shouldExcludeHighImpact(HealthProfile hp, List<BloodPressureRecord> bpLogs) {
         if (hp == null) {
             return getLatestSystolic(bpLogs) >= 160;
         }
@@ -108,7 +108,7 @@ public class ExerciseCandidateService {
     }
 
     // 고강도 운동 제외 여부: 혈압 수축기 160 이상
-    private boolean shouldExcludeHighIntensity(HealthProfile hp, List<BloodPressureLog> bpLogs) {
+    private boolean shouldExcludeHighIntensity(HealthProfile hp, List<BloodPressureRecord> bpLogs) {
         if (hp == null || hp.getBloodPressureStatus() == null) {
             return false;
         }
@@ -118,7 +118,7 @@ public class ExerciseCandidateService {
         return false;
     }
 
-    private int getLatestSystolic(List<BloodPressureLog> bpLogs) {
+    private int getLatestSystolic(List<BloodPressureRecord> bpLogs) {
         if (bpLogs == null || bpLogs.isEmpty()) return 0;
         return bpLogs.get(0).getSystolic();
     }
