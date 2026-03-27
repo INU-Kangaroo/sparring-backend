@@ -1,5 +1,7 @@
 package com.kangaroo.sparring.domain.auth.service;
 
+import com.kangaroo.sparring.global.exception.CustomException;
+import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,6 +9,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 @Slf4j
 @Component
@@ -19,7 +24,7 @@ public class EmailAsyncSender {
     private String fromEmail;
 
     @Async("mailExecutor")
-    public void sendVerificationCode(String toEmail, String code) {
+    public CompletableFuture<Void> sendVerificationCode(String toEmail, String code) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -35,8 +40,10 @@ public class EmailAsyncSender {
 
             mailSender.send(message);
             log.info("이메일 발송 완료: {}", toEmail);
+            return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
             log.error("이메일 비동기 발송 실패: {}", toEmail, e);
+            throw new CompletionException(new CustomException(ErrorCode.EMAIL_SEND_FAILED));
         }
     }
 }
