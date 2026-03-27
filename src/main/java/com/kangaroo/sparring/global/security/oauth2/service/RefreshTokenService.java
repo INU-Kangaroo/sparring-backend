@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.Instant;
 
 @Slf4j
 @Service
@@ -19,6 +20,7 @@ public class RefreshTokenService {
     private long refreshTokenValidityMs;
     
     private static final String REFRESH_TOKEN_PREFIX = "refresh_token:";
+    private static final String ACCESS_REVOKED_AFTER_PREFIX = "access_revoked_after:";
 
     /**
      * 리프레시 토큰을 Redis에 저장
@@ -53,5 +55,28 @@ public class RefreshTokenService {
     public boolean validateRefreshToken(Long userId, String refreshToken) {
         String storedToken = getRefreshToken(userId);
         return storedToken != null && storedToken.equals(refreshToken);
+    }
+
+    public void revokeAccessTokens(Long userId) {
+        String key = ACCESS_REVOKED_AFTER_PREFIX + userId;
+        Duration expiration = Duration.ofMillis(refreshTokenValidityMs);
+        String revokedAfterEpochMilli = String.valueOf(Instant.now().toEpochMilli());
+        redisTemplate.opsForValue().set(key, revokedAfterEpochMilli, expiration);
+        log.info("Access tokens revoked for user: {}", userId);
+    }
+
+    public boolean isAccessTokenRevoked(Long userId, long tokenIssuedAtEpochMilli) {
+        String key = ACCESS_REVOKED_AFTER_PREFIX + userId;
+        String revokedAfter = redisTemplate.opsForValue().get(key);
+        if (revokedAfter == null || revokedAfter.isBlank()) {
+            return false;
+        }
+        try {
+            long revokedAfterEpochMilli = Long.parseLong(revokedAfter);
+            return tokenIssuedAtEpochMilli <= revokedAfterEpochMilli;
+        } catch (NumberFormatException e) {
+            log.warn("Invalid access revoke timestamp format for user: {}", userId);
+            return false;
+        }
     }
 }

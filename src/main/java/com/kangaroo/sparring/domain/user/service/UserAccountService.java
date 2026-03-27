@@ -4,6 +4,7 @@ import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
+import com.kangaroo.sparring.global.security.oauth2.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,6 +19,7 @@ public class UserAccountService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional
     public void updateEmail(Long userId, String email) {
@@ -47,6 +49,8 @@ public class UserAccountService {
         }
 
         user.updatePassword(passwordEncoder.encode(newPassword));
+        refreshTokenService.deleteRefreshToken(userId);
+        refreshTokenService.revokeAccessTokens(userId);
         log.info("비밀번호 변경 완료: userId={}", userId);
     }
 
@@ -64,6 +68,8 @@ public class UserAccountService {
         }
 
         user.deactivate();
+        refreshTokenService.deleteRefreshToken(userId);
+        refreshTokenService.revokeAccessTokens(userId);
         log.info("회원 탈퇴 처리 완료: userId={}", userId);
     }
 
