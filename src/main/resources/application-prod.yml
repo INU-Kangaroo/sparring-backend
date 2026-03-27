@@ -27,3 +27,7 @@ logging:
     com.kangaroo.sparring: INFO
     org.hibernate.SQL: WARN
     org.springframework.security: INFO
+
+cors:
+  allowed-origins: []
+  allowed-origin-patterns: []

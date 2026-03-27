@@ -27,8 +27,8 @@ public class FoodLogResponse {
     @Schema(description = "식사 구분", example = "아침")
     private MealTime mealTime;
 
-    @Schema(description = "섭취 일시", example = "2026-03-06T08:30:00")
-    private LocalDateTime eatenAt;
+    @Schema(description = "기록 일시", example = "2026-03-06T08:30:00")
+    private LocalDateTime loggedAt;
 
     @Schema(description = "실제 섭취량 (g)", example = "180.0")
     private Double eatenAmountGram;
@@ -54,7 +54,7 @@ public class FoodLogResponse {
                 .foodName(log.getFoodName())
                 .foodId(log.getFood() != null ? log.getFood().getId() : null)
                 .mealTime(log.getMealTime())
-                .eatenAt(log.getEatenAt())
+                .loggedAt(log.getEatenAt())
                 .eatenAmountGram(log.getEatenAmountGram())
                 .calories(log.getCalories())
                 .carbs(log.getCarbs())
