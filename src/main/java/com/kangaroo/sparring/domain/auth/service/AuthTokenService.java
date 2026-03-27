@@ -1,7 +1,7 @@
-package com.kangaroo.sparring.domain.user.service.auth;
+package com.kangaroo.sparring.domain.auth.service;
 
-import com.kangaroo.sparring.domain.user.dto.req.LoginRequest;
-import com.kangaroo.sparring.domain.user.dto.res.AuthResponse;
+import com.kangaroo.sparring.domain.auth.dto.req.LoginRequest;
+import com.kangaroo.sparring.domain.auth.dto.res.AuthResponse;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
 import com.kangaroo.sparring.global.exception.CustomException;

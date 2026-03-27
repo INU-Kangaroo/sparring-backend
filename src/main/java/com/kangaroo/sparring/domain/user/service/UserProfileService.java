@@ -1,9 +1,9 @@
-package com.kangaroo.sparring.domain.user.service.profile;
+package com.kangaroo.sparring.domain.user.service;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
-import com.kangaroo.sparring.domain.measurement.repository.BloodSugarLogRepository;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import com.kangaroo.sparring.domain.user.dto.req.UpdateUserProfileRequest;
 import com.kangaroo.sparring.domain.user.dto.res.UserDashboardResponse;
 import com.kangaroo.sparring.domain.user.dto.res.UserProfileResponse;
@@ -31,7 +31,7 @@ public class UserProfileService {
 
     private final UserRepository userRepository;
     private final HealthProfileRepository healthProfileRepository;
-    private final BloodSugarLogRepository bloodSugarLogRepository;
+    private final RecordReadService recordReadService;
 
     public UserProfileResponse getProfile(Long userId) {
         User user = getUserOrThrow(userId);
@@ -43,8 +43,8 @@ public class UserProfileService {
         User user = getUserOrThrow(userId);
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
 
-        Long totalCount = bloodSugarLogRepository.countByUserId(userId);
-        BigDecimal average = roundOneDecimal(bloodSugarLogRepository.findAverageGlucoseByUserId(userId));
+        Long totalCount = recordReadService.countBloodSugarRecords(userId);
+        BigDecimal average = roundOneDecimal(recordReadService.getAverageBloodSugar(userId));
         BigDecimal last7DaysAverage = getLast7DaysAverage(userId);
         int streak = calculateConsecutiveMeasurementDays(userId);
 
@@ -115,16 +115,16 @@ public class UserProfileService {
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
 
-        Double average = bloodSugarLogRepository.findAverageGlucoseByUserIdAndDateRange(
+        Double average = recordReadService.getAverageBloodSugar(
                 userId, startDateTime, endDateTime
         );
         return roundOneDecimal(average);
     }
 
     private int calculateConsecutiveMeasurementDays(Long userId) {
-        List<BloodSugarLog> logs = bloodSugarLogRepository.findByUserIdAndIsDeletedFalseOrderByMeasurementTimeDesc(userId);
+        List<BloodSugarRecord> logs = recordReadService.getBloodSugarRecordsDesc(userId);
         Set<LocalDate> dateSet = new LinkedHashSet<>();
-        for (BloodSugarLog log : logs) {
+        for (BloodSugarRecord log : logs) {
             dateSet.add(log.getMeasurementTime().toLocalDate());
         }
 

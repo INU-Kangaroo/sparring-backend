@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.user.service.auth;
+package com.kangaroo.sparring.domain.auth.service;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

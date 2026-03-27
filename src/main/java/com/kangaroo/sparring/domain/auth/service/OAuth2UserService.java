@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.user.service.oauth2;
+package com.kangaroo.sparring.domain.auth.service;
 
 import com.kangaroo.sparring.domain.user.type.SocialProvider;
 import com.kangaroo.sparring.domain.user.entity.User;

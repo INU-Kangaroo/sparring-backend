@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.user.service.auth;
+package com.kangaroo.sparring.domain.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
