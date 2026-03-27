@@ -30,7 +30,11 @@ public class ExerciseController {
 
     private final ExerciseLogService exerciseLogService;
 
-    @Operation(summary = "운동 기록 저장", description = "사용자의 운동 기록을 저장합니다.")
+    @Operation(
+            summary = "[삭제 예정] 운동 기록 저장",
+            description = "사용자의 운동 기록을 저장합니다. 대체: POST /api/records/exercise",
+            deprecated = true
+    )
     @PostMapping("/logs")
     public ResponseEntity<ExerciseLogCreateResponse> createExerciseLog(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -42,7 +46,11 @@ public class ExerciseController {
                 .body(exerciseLogService.createExerciseLog(userId, request));
     }
 
-    @Operation(summary = "운동 기록 일별 조회", description = "사용자의 특정 일자 운동 기록을 조회합니다.")
+    @Operation(
+            summary = "[삭제 예정] 운동 기록 일별 조회",
+            description = "사용자의 특정 일자 운동 기록을 조회합니다. 대체: GET /api/records/exercise?period=daily",
+            deprecated = true
+    )
     @GetMapping("/logs/daily")
     public ResponseEntity<List<ExerciseLogListItemResponse>> getDailyExerciseLogs(
             @AuthenticationPrincipal UserIdPrincipal principal,

@@ -30,7 +30,11 @@ public class FoodLogController {
 
     private final FoodLogService foodLogService;
 
-    @Operation(summary = "식사 기록 등록", description = "사용자의 식사 기록을 등록합니다.")
+    @Operation(
+            summary = "[삭제 예정] 식사 기록 등록",
+            description = "사용자의 식사 기록을 등록합니다. 대체: POST /api/records/food",
+            deprecated = true
+    )
     @PostMapping("/logs")
     public ResponseEntity<FoodLogCreateResponse> createFoodLog(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -42,7 +46,11 @@ public class FoodLogController {
                 .body(foodLogService.createFoodLog(userId, request));
     }
 
-    @Operation(summary = "식사 기록 일별 조회", description = "사용자의 특정 일자 식사 기록을 조회합니다.")
+    @Operation(
+            summary = "[삭제 예정] 식사 기록 일별 조회",
+            description = "사용자의 특정 일자 식사 기록을 조회합니다. 대체: GET /api/records/food?period=daily",
+            deprecated = true
+    )
     @GetMapping("/logs/daily")
     public ResponseEntity<List<FoodLogListItemResponse>> getDailyFoodLogs(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -54,7 +62,11 @@ public class FoodLogController {
         return ResponseEntity.ok(foodLogService.getDailyFoodLogs(userId, date));
     }
 
-    @Operation(summary = "식사 기록 삭제", description = "사용자의 식사 기록을 삭제합니다.")
+    @Operation(
+            summary = "[삭제 예정] 식사 기록 삭제",
+            description = "사용자의 식사 기록을 삭제합니다. 대체: DELETE /api/records/food/{foodLogId}",
+            deprecated = true
+    )
     @DeleteMapping("/logs/{foodLogId}")
     public ResponseEntity<Void> deleteFoodLog(
             @AuthenticationPrincipal UserIdPrincipal principal,
