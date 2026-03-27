@@ -21,8 +21,8 @@ public class FoodLogCreateResponse {
     @Schema(description = "실제 섭취량 (g)", example = "180.0")
     private Double eatenAmountGram;
 
-    @Schema(description = "섭취 일시", example = "2026-03-06T08:30:00")
-    private LocalDateTime eatenAt;
+    @Schema(description = "기록 일시", example = "2026-03-06T08:30:00")
+    private LocalDateTime loggedAt;
 
     @Schema(description = "칼로리 (kcal)", example = "210.0")
     private Double calories;
@@ -32,7 +32,7 @@ public class FoodLogCreateResponse {
                 .id(log.getId())
                 .foodName(log.getFoodName())
                 .eatenAmountGram(log.getEatenAmountGram())
-                .eatenAt(log.getEatenAt())
+                .loggedAt(log.getEatenAt())
                 .calories(log.getCalories())
                 .build();
     }

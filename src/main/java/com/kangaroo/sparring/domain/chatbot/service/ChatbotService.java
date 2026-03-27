@@ -23,6 +23,7 @@ import reactor.core.Disposable;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -43,8 +44,10 @@ public class ChatbotService {
     private final GeminiStreamingClient geminiStreamingClient;
     private final HealthProfileRepository healthProfileRepository;
     private final RecordReadService recordReadService;
+    private final Clock kstClock;
 
     public ChatSessionResponse createSession(Long userId, CreateSessionRequest request) {
+        LocalDateTime now = now();
         String sessionId = UUID.randomUUID().toString();
         String title = (request.getTitle() != null && !request.getTitle().isBlank())
                 ? request.getTitle()
@@ -55,8 +58,8 @@ public class ChatbotService {
                 .userId(userId)
                 .title(title)
                 .messages(new ArrayList<>())
-                .createdAt(LocalDateTime.now())
-                .lastActiveAt(LocalDateTime.now())
+                .createdAt(now)
+                .lastActiveAt(now)
                 .build();
 
         sessionRepository.save(session);
@@ -103,46 +106,11 @@ public class ChatbotService {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         // onNext: 토큰 청크를 클라이언트로 전송
-                        chunk -> {
-                            if (completed.get()) return;
-                            try {
-                                fullResponse.append(chunk);
-                                emitter.send(SseEmitter.event().data(chunk).build());
-                            } catch (IOException e) {
-                                log.warn("SSE 전송 실패 (클라이언트 연결 해제): {}", e.getMessage());
-                                if (completed.compareAndSet(false, true)) {
-                                    disposeSubscription(subscriptionRef);
-                                    emitter.completeWithError(e);
-                                }
-                            }
-                        },
+                        chunk -> handleStreamChunk(emitter, completed, subscriptionRef, fullResponse, chunk),
                         // onError: 오류 이벤트 전송 후 종료
-                        error -> {
-                            if (completed.compareAndSet(false, true)) {
-                                try {
-                                    String errorMsg = error instanceof CustomException ce
-                                            ? ce.getErrorCode().getMessage()
-                                            : "AI 응답 중 오류가 발생했습니다.";
-                                    emitter.send(SseEmitter.event().name("error").data(errorMsg).build());
-                                } catch (IOException ignored) {}
-                                disposeSubscription(subscriptionRef);
-                                emitter.completeWithError(error);
-                            }
-                        },
+                        error -> handleStreamError(emitter, completed, subscriptionRef, error),
                         // onComplete: 모델 응답 저장 후 완료 신호 전송
-                        () -> {
-                            if (completed.compareAndSet(false, true)) {
-                                persistModelReply(updatedSession, userId, fullResponse.toString());
-                                try {
-                                    emitter.send(SseEmitter.event().name("done").data("[DONE]").build());
-                                } catch (IOException e) {
-                                    log.warn("[DONE] 이벤트 전송 실패: {}", e.getMessage());
-                                } finally {
-                                    disposeSubscription(subscriptionRef);
-                                    emitter.complete();
-                                }
-                            }
-                        }
+                        () -> handleStreamComplete(emitter, completed, subscriptionRef, updatedSession, userId, fullResponse)
                 );
         subscriptionRef.set(subscription);
 
@@ -162,11 +130,12 @@ public class ChatbotService {
     }
 
     private ChatSession appendUserMessage(ChatSession session, String message) {
+        LocalDateTime now = now();
         List<ChatMessage> messages = new ArrayList<>(session.getMessages());
         messages.add(ChatMessage.builder()
                 .role(MessageRole.USER)
                 .content(message)
-                .timestamp(LocalDateTime.now())
+                .timestamp(now)
                 .build());
 
         String title = session.getTitle();
@@ -180,7 +149,7 @@ public class ChatbotService {
                 .title(title)
                 .messages(messages)
                 .createdAt(session.getCreatedAt())
-                .lastActiveAt(LocalDateTime.now())
+                .lastActiveAt(now)
                 .build();
     }
 
@@ -194,20 +163,23 @@ public class ChatbotService {
     private void persistModelReply(ChatSession session, Long userId, String fullText) {
         if (fullText.isBlank()) return;
 
-        List<ChatMessage> messages = new ArrayList<>(session.getMessages());
+        LocalDateTime now = now();
+        ChatSession latestSession = sessionRepository.findById(userId, session.getSessionId()).orElse(session);
+
+        List<ChatMessage> messages = new ArrayList<>(latestSession.getMessages());
         messages.add(ChatMessage.builder()
                 .role(MessageRole.MODEL)
                 .content(fullText)
-                .timestamp(LocalDateTime.now())
+                .timestamp(now)
                 .build());
 
         ChatSession finalSession = ChatSession.builder()
-                .sessionId(session.getSessionId())
+                .sessionId(latestSession.getSessionId())
                 .userId(userId)
-                .title(session.getTitle())
+                .title(latestSession.getTitle())
                 .messages(messages)
-                .createdAt(session.getCreatedAt())
-                .lastActiveAt(LocalDateTime.now())
+                .createdAt(latestSession.getCreatedAt())
+                .lastActiveAt(now)
                 .build();
 
         sessionRepository.save(finalSession);
@@ -235,7 +207,7 @@ public class ChatbotService {
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
         if (profile != null) {
             if (profile.getBirthDate() != null) {
-                int age = Period.between(profile.getBirthDate(), LocalDate.now()).getYears();
+                int age = Period.between(profile.getBirthDate(), today()).getYears();
                 sb.append("- 나이: ").append(age).append("세\n");
             }
             if (profile.getGender() != null) {
@@ -274,7 +246,77 @@ public class ChatbotService {
         if (sb.toString().equals("[사용자 건강 컨텍스트]\n")) {
             return "";
         }
-        sb.append("- 기준 시각: ").append(LocalDateTime.now()).append("\n");
+        sb.append("- 기준 시각: ").append(now()).append("\n");
         return sb.toString();
+    }
+
+    private void handleStreamChunk(
+            SseEmitter emitter,
+            AtomicBoolean completed,
+            AtomicReference<Disposable> subscriptionRef,
+            StringBuilder fullResponse,
+            String chunk
+    ) {
+        if (completed.get()) {
+            return;
+        }
+        try {
+            fullResponse.append(chunk);
+            emitter.send(SseEmitter.event().data(chunk).build());
+        } catch (IOException e) {
+            log.warn("SSE 전송 실패 (클라이언트 연결 해제): {}", e.getMessage());
+            if (completed.compareAndSet(false, true)) {
+                disposeSubscription(subscriptionRef);
+                emitter.completeWithError(e);
+            }
+        }
+    }
+
+    private void handleStreamError(
+            SseEmitter emitter,
+            AtomicBoolean completed,
+            AtomicReference<Disposable> subscriptionRef,
+            Throwable error
+    ) {
+        if (completed.compareAndSet(false, true)) {
+            try {
+                String errorMsg = error instanceof CustomException ce
+                        ? ce.getErrorCode().getMessage()
+                        : "AI 응답 중 오류가 발생했습니다.";
+                emitter.send(SseEmitter.event().name("error").data(errorMsg).build());
+            } catch (IOException ignored) {
+            }
+            disposeSubscription(subscriptionRef);
+            emitter.completeWithError(error);
+        }
+    }
+
+    private void handleStreamComplete(
+            SseEmitter emitter,
+            AtomicBoolean completed,
+            AtomicReference<Disposable> subscriptionRef,
+            ChatSession session,
+            Long userId,
+            StringBuilder fullResponse
+    ) {
+        if (completed.compareAndSet(false, true)) {
+            persistModelReply(session, userId, fullResponse.toString());
+            try {
+                emitter.send(SseEmitter.event().name("done").data("[DONE]").build());
+            } catch (IOException e) {
+                log.warn("[DONE] 이벤트 전송 실패: {}", e.getMessage());
+            } finally {
+                disposeSubscription(subscriptionRef);
+                emitter.complete();
+            }
+        }
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(kstClock);
+    }
+
+    private LocalDate today() {
+        return LocalDate.now(kstClock);
     }
 }
