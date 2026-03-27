@@ -1,10 +1,11 @@
 package com.kangaroo.sparring.domain.insight.weekly.service;
 
-import com.kangaroo.sparring.domain.exercise.log.entity.ExerciseLog;
-import com.kangaroo.sparring.domain.food.log.entity.FoodLog;
+import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
+import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
 import com.kangaroo.sparring.domain.common.health.HealthThresholds;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.read.TemporalRecord;
 import com.kangaroo.sparring.domain.insight.weekly.policy.ReportPolicyProperties;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.DailyConditionEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.HighlightEvidence;
@@ -32,12 +33,12 @@ class ReportRuleSupport {
     private static final String[] DAY_LABELS = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
     private final ReportPolicyProperties policy;
 
-    BloodSugarStats calcBloodSugarStats(List<BloodSugarLog> logs) {
+    BloodSugarStats calcBloodSugarStats(List<BloodSugarRecord> logs) {
         BloodSugarStats stats = new BloodSugarStats();
         if (logs.isEmpty()) return stats;
 
         stats.totalCount = logs.size();
-        stats.overallAvg = logs.stream().mapToInt(BloodSugarLog::getGlucoseLevel).average().orElse(0);
+        stats.overallAvg = logs.stream().mapToInt(BloodSugarRecord::getGlucoseLevel).average().orElse(0);
         stats.normalCount = (int) logs.stream().filter(this::isBloodSugarNormal).count();
         stats.severeHighCount = (int) logs.stream().filter(this::isBloodSugarSeverelyHigh).count();
 
@@ -48,42 +49,42 @@ class ReportRuleSupport {
         return stats;
     }
 
-    BloodPressureStats calcBloodPressureStats(List<BloodPressureLog> logs) {
+    BloodPressureStats calcBloodPressureStats(List<BloodPressureRecord> logs) {
         BloodPressureStats stats = new BloodPressureStats();
         if (logs.isEmpty()) return stats;
 
         stats.totalCount = logs.size();
-        stats.systolicAvg = logs.stream().mapToInt(BloodPressureLog::getSystolic).average().orElse(0);
-        stats.diastolicAvg = logs.stream().mapToInt(BloodPressureLog::getDiastolic).average().orElse(0);
+        stats.systolicAvg = logs.stream().mapToInt(BloodPressureRecord::getSystolic).average().orElse(0);
+        stats.diastolicAvg = logs.stream().mapToInt(BloodPressureRecord::getDiastolic).average().orElse(0);
         stats.normalCount = (int) logs.stream().filter(this::isBloodPressureNormal).count();
         stats.hypertensionCount = (int) countHypertensionLogs(logs);
         stats.severeHighCount = (int) logs.stream().filter(this::isBloodPressureSeverelyHigh).count();
         return stats;
     }
 
-    MealStats calcMealStats(List<FoodLog> logs) {
+    MealStats calcMealStats(List<FoodRecord> logs) {
         MealStats stats = new MealStats();
         if (logs.isEmpty()) return stats;
 
         stats.totalCount = logs.size();
 
-        List<FoodLog> withCalories = logs.stream().filter(l -> l.getCalories() != null).toList();
-        double totalCalories = withCalories.stream().mapToDouble(FoodLog::getCalories).sum();
+        List<FoodRecord> withCalories = logs.stream().filter(l -> l.getCalories() != null).toList();
+        double totalCalories = withCalories.stream().mapToDouble(FoodRecord::getCalories).sum();
         stats.avgCaloriesPerDay = totalCalories / WEEK_DAYS;
 
         Map<LocalDate, Long> mealsPerDay = logs.stream()
-                .collect(Collectors.groupingBy(l -> l.getEatenAt().toLocalDate(), Collectors.counting()));
+                .collect(Collectors.groupingBy(l -> l.occurredAt().toLocalDate(), Collectors.counting()));
         stats.fullMealDays = (int) mealsPerDay.values().stream().filter(c -> c >= 3).count();
 
         return stats;
     }
 
-    ExerciseStats calcExerciseStats(List<ExerciseLog> logs) {
+    ExerciseStats calcExerciseStats(List<ExerciseRecord> logs) {
         ExerciseStats stats = new ExerciseStats();
         if (logs.isEmpty()) return stats;
 
         stats.totalCount = logs.size();
-        stats.activeDays = (int) logs.stream().map(l -> l.getLoggedAt().toLocalDate()).distinct().count();
+        stats.activeDays = (int) logs.stream().map(l -> l.occurredAt().toLocalDate()).distinct().count();
         return stats;
     }
 
@@ -149,16 +150,16 @@ class ReportRuleSupport {
         return (int) (weightedSum / totalWeight);
     }
 
-    int calcStabilityScore(List<BloodSugarLog> bsLogs, List<BloodPressureLog> bpLogs) {
+    int calcStabilityScore(List<BloodSugarRecord> bsLogs, List<BloodPressureRecord> bpLogs) {
         List<Double> scores = new ArrayList<>();
 
         if (bsLogs.size() >= 3) {
-            scores.add(calcVariabilityScore(bsLogs.stream().map(BloodSugarLog::getGlucoseLevel).toList()));
+            scores.add(calcVariabilityScore(bsLogs.stream().map(BloodSugarRecord::getGlucoseLevel).toList()));
         }
 
         if (bpLogs.size() >= 3) {
-            double systolic = calcVariabilityScore(bpLogs.stream().map(BloodPressureLog::getSystolic).toList());
-            double diastolic = calcVariabilityScore(bpLogs.stream().map(BloodPressureLog::getDiastolic).toList());
+            double systolic = calcVariabilityScore(bpLogs.stream().map(BloodPressureRecord::getSystolic).toList());
+            double diastolic = calcVariabilityScore(bpLogs.stream().map(BloodPressureRecord::getDiastolic).toList());
             scores.add((systolic + diastolic) / 2.0);
         }
 
@@ -166,17 +167,17 @@ class ReportRuleSupport {
         return (int) scores.stream().mapToDouble(Double::doubleValue).average().orElse(0);
     }
 
-    int calcTrendScore(LocalDate monday, List<BloodSugarLog> bsLogs, List<BloodPressureLog> bpLogs) {
+    int calcTrendScore(LocalDate monday, List<BloodSugarRecord> bsLogs, List<BloodPressureRecord> bpLogs) {
         List<Double> scores = new ArrayList<>();
 
-        Double bloodSugarSlope = calcDailySlope(monday, bsLogs, BloodSugarLog::getMeasurementTime, BloodSugarLog::getGlucoseLevel);
+        Double bloodSugarSlope = calcDailySlope(monday, bsLogs, BloodSugarRecord::getMeasurementTime, BloodSugarRecord::getGlucoseLevel);
         if (bloodSugarSlope != null) {
             // 혈당은 하향 추세일수록 가점
             scores.add(clamp(50 - bloodSugarSlope * policy.getBloodSugarTrendSlopeFactor()));
         }
 
-        Double systolicSlope = calcDailySlope(monday, bpLogs, BloodPressureLog::getMeasuredAt, BloodPressureLog::getSystolic);
-        Double diastolicSlope = calcDailySlope(monday, bpLogs, BloodPressureLog::getMeasuredAt, BloodPressureLog::getDiastolic);
+        Double systolicSlope = calcDailySlope(monday, bpLogs, BloodPressureRecord::getMeasuredAt, BloodPressureRecord::getSystolic);
+        Double diastolicSlope = calcDailySlope(monday, bpLogs, BloodPressureRecord::getMeasuredAt, BloodPressureRecord::getDiastolic);
         if (systolicSlope != null && diastolicSlope != null) {
             // 혈압도 하향 추세일수록 가점
             scores.add((clamp(50 - systolicSlope * policy.getSystolicTrendSlopeFactor())
@@ -189,25 +190,25 @@ class ReportRuleSupport {
 
     List<DailyConditionEvidence> buildDailyConditions(
             LocalDate monday,
-            List<BloodSugarLog> bsLogs,
-            List<BloodPressureLog> bpLogs,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs
+            List<BloodSugarRecord> bsLogs,
+            List<BloodPressureRecord> bpLogs,
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs
     ) {
-        ReportWeekDataIndex weekDataIndex = ReportWeekDataIndex.from(bsLogs, bpLogs, mealLogs, exerciseLogs);
+        ReportWeekDataIndex weekDataIndex = ReportWeekDataIndex.from(bsLogs, bpLogs, foodLogs, exerciseLogs);
         List<DailyConditionEvidence> result = new ArrayList<>();
 
         for (int i = 0; i < WEEK_DAYS; i++) {
             LocalDate date = monday.plusDays(i);
             List<Double> dayScores = new ArrayList<>();
 
-            List<BloodSugarLog> dayBs = weekDataIndex.bloodSugarByDate().getOrDefault(date, List.of());
+            List<BloodSugarRecord> dayBs = weekDataIndex.bloodSugarByDate().getOrDefault(date, List.of());
             if (!dayBs.isEmpty()) {
                 long normalCount = dayBs.stream().filter(this::isBloodSugarNormal).count();
                 dayScores.add((double) normalCount / dayBs.size() * 100);
             }
 
-            List<BloodPressureLog> dayBp = weekDataIndex.bloodPressureByDate().getOrDefault(date, List.of());
+            List<BloodPressureRecord> dayBp = weekDataIndex.bloodPressureByDate().getOrDefault(date, List.of());
             if (!dayBp.isEmpty()) {
                 long normalCount = dayBp.stream()
                         .filter(this::isBloodPressureNormal)
@@ -215,7 +216,7 @@ class ReportRuleSupport {
                 dayScores.add((double) normalCount / dayBp.size() * 100);
             }
 
-            long mealCount = weekDataIndex.mealByDate().getOrDefault(date, List.of()).size();
+            long mealCount = weekDataIndex.foodByDate().getOrDefault(date, List.of()).size();
             if (mealCount > 0) dayScores.add(mealCount >= 3 ? 100.0 : 0.0);
 
             boolean hasExercise = !weekDataIndex.exerciseByDate().getOrDefault(date, List.of()).isEmpty();
@@ -240,17 +241,17 @@ class ReportRuleSupport {
     }
 
     List<HighlightEvidence> buildHighlights(
-            List<BloodSugarLog> bsLogs,
-            List<BloodPressureLog> bpLogs,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs,
+            List<BloodSugarRecord> bsLogs,
+            List<BloodPressureRecord> bpLogs,
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs,
             LocalDate monday
     ) {
         List<HighlightEvidence> goods = new ArrayList<>();
         List<HighlightEvidence> warnings = new ArrayList<>();
 
-        addGoodHighlights(goods, bsLogs, bpLogs, mealLogs, exerciseLogs, monday);
-        addWarningHighlights(warnings, bsLogs, bpLogs, mealLogs, exerciseLogs, monday);
+        addGoodHighlights(goods, bsLogs, bpLogs, foodLogs, exerciseLogs, monday);
+        addWarningHighlights(warnings, bsLogs, bpLogs, foodLogs, exerciseLogs, monday);
 
         List<HighlightEvidence> result = new ArrayList<>();
         result.addAll(goods.stream().limit(2).toList());
@@ -260,41 +261,39 @@ class ReportRuleSupport {
 
     private void addGoodHighlights(
             List<HighlightEvidence> goods,
-            List<BloodSugarLog> bsLogs,
-            List<BloodPressureLog> bpLogs,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs,
+            List<BloodSugarRecord> bsLogs,
+            List<BloodPressureRecord> bpLogs,
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs,
             LocalDate monday
     ) {
         addBloodPressureStreakGood(goods, bpLogs, monday);
         addBloodSugarStreakGood(goods, bsLogs, monday);
         addExerciseGoalGood(goods, exerciseLogs);
-        addMealAttendanceGood(goods, mealLogs);
+        addMealAttendanceGood(goods, foodLogs);
 
-        int bsRecordDays = calcRecordDaysForLogs(bsLogs, monday,
-                log -> log.getMeasurementTime().toLocalDate());
-        int bpRecordDays = calcRecordDaysForLogs(bpLogs, monday,
-                log -> log.getMeasuredAt().toLocalDate());
+        int bsRecordDays = calcRecordDaysForLogs(bsLogs, monday);
+        int bpRecordDays = calcRecordDaysForLogs(bpLogs, monday);
         addMeasurementGoalGood(goods, bsRecordDays, bpRecordDays);
     }
 
     private void addWarningHighlights(
             List<HighlightEvidence> warnings,
-            List<BloodSugarLog> bsLogs,
-            List<BloodPressureLog> bpLogs,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs,
+            List<BloodSugarRecord> bsLogs,
+            List<BloodPressureRecord> bpLogs,
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs,
             LocalDate monday
     ) {
-        addDailyConditionWarning(warnings, bsLogs, bpLogs, mealLogs, exerciseLogs, monday);
+        addDailyConditionWarning(warnings, bsLogs, bpLogs, foodLogs, exerciseLogs, monday);
         addAfterMealHighWarning(warnings, bsLogs);
         addBloodPressureHighWarning(warnings, bpLogs);
-        addLifestyleMissingWarning(warnings, mealLogs, exerciseLogs);
+        addLifestyleMissingWarning(warnings, foodLogs, exerciseLogs);
     }
 
     private void addBloodPressureStreakGood(
             List<HighlightEvidence> goods,
-            List<BloodPressureLog> bpLogs,
+            List<BloodPressureRecord> bpLogs,
             LocalDate monday
     ) {
         if (bpLogs.isEmpty()) return;
@@ -311,7 +310,7 @@ class ReportRuleSupport {
 
     private void addBloodSugarStreakGood(
             List<HighlightEvidence> goods,
-            List<BloodSugarLog> bsLogs,
+            List<BloodSugarRecord> bsLogs,
             LocalDate monday
     ) {
         if (bsLogs.isEmpty()) return;
@@ -326,8 +325,8 @@ class ReportRuleSupport {
         ));
     }
 
-    private void addExerciseGoalGood(List<HighlightEvidence> goods, List<ExerciseLog> exerciseLogs) {
-        long activeDays = exerciseLogs.stream().map(l -> l.getLoggedAt().toLocalDate()).distinct().count();
+    private void addExerciseGoalGood(List<HighlightEvidence> goods, List<ExerciseRecord> exerciseLogs) {
+        long activeDays = exerciseLogs.stream().map(l -> l.occurredAt().toLocalDate()).distinct().count();
         if (activeDays < policy.getExerciseActiveDaysTarget()) return;
 
         goods.add(new HighlightEvidence(
@@ -338,8 +337,8 @@ class ReportRuleSupport {
         ));
     }
 
-    private void addMealAttendanceGood(List<HighlightEvidence> goods, List<FoodLog> mealLogs) {
-        int fullMealDays = calcMealStats(mealLogs).fullMealDays;
+    private void addMealAttendanceGood(List<HighlightEvidence> goods, List<FoodRecord> foodLogs) {
+        int fullMealDays = calcMealStats(foodLogs).fullMealDays;
         if (fullMealDays != policy.getFullMealDaysTarget()) return;
 
         goods.add(new HighlightEvidence(
@@ -367,13 +366,13 @@ class ReportRuleSupport {
 
     private void addDailyConditionWarning(
             List<HighlightEvidence> warnings,
-            List<BloodSugarLog> bsLogs,
-            List<BloodPressureLog> bpLogs,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs,
+            List<BloodSugarRecord> bsLogs,
+            List<BloodPressureRecord> bpLogs,
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs,
             LocalDate monday
     ) {
-        List<DailyConditionEvidence> conditions = buildDailyConditions(monday, bsLogs, bpLogs, mealLogs, exerciseLogs);
+        List<DailyConditionEvidence> conditions = buildDailyConditions(monday, bsLogs, bpLogs, foodLogs, exerciseLogs);
         conditions.stream()
                 .filter(c -> c.status() == DailyConditionStatus.BAD)
                 .findFirst()
@@ -385,9 +384,9 @@ class ReportRuleSupport {
                 )));
     }
 
-    private void addAfterMealHighWarning(List<HighlightEvidence> warnings, List<BloodSugarLog> bsLogs) {
+    private void addAfterMealHighWarning(List<HighlightEvidence> warnings, List<BloodSugarRecord> bsLogs) {
         if (bsLogs.isEmpty()) return;
-        Map<String, List<BloodSugarLog>> afterMealBySlot = bsLogs.stream()
+        Map<String, List<BloodSugarRecord>> afterMealBySlot = bsLogs.stream()
                 .filter(l -> l.getMeasurementLabel().contains("식후"))
                 .collect(Collectors.groupingBy(this::toMealTimeSlotLabel));
 
@@ -405,7 +404,7 @@ class ReportRuleSupport {
                 });
     }
 
-    private void addBloodPressureHighWarning(List<HighlightEvidence> warnings, List<BloodPressureLog> bpLogs) {
+    private void addBloodPressureHighWarning(List<HighlightEvidence> warnings, List<BloodPressureRecord> bpLogs) {
         if (bpLogs.isEmpty()) return;
         long highCount = countHypertensionLogs(bpLogs);
         if ((double) highCount / bpLogs.size() < 0.5) return;
@@ -420,18 +419,18 @@ class ReportRuleSupport {
 
     private void addLifestyleMissingWarning(
             List<HighlightEvidence> warnings,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs
     ) {
-        if (!mealLogs.isEmpty() && !exerciseLogs.isEmpty()) return;
-        String message = mealLogs.isEmpty() && exerciseLogs.isEmpty()
+        if (!foodLogs.isEmpty() && !exerciseLogs.isEmpty()) return;
+        String message = foodLogs.isEmpty() && exerciseLogs.isEmpty()
                 ? "식사/운동 기록 없음"
-                : mealLogs.isEmpty() ? "식사 기록 없음" : "운동 기록 없음";
+                : foodLogs.isEmpty() ? "식사 기록 없음" : "운동 기록 없음";
         warnings.add(new HighlightEvidence(
                 HighlightType.WARNING,
                 "LIFESTYLE_MISSING",
                 message,
-                Map.of("mealMissing", mealLogs.isEmpty(), "exerciseMissing", exerciseLogs.isEmpty())
+                Map.of("mealMissing", foodLogs.isEmpty(), "exerciseMissing", exerciseLogs.isEmpty())
         ));
     }
 
@@ -483,8 +482,8 @@ class ReportRuleSupport {
                         double ratioB = calcAfterMealHighRatio(b.getValue());
                         int ratioCompare = Double.compare(ratioB, ratioA);
                         if (ratioCompare != 0) return ratioCompare;
-                        double avgA = a.getValue().stream().mapToInt(BloodSugarLog::getGlucoseLevel).average().orElse(0);
-                        double avgB = b.getValue().stream().mapToInt(BloodSugarLog::getGlucoseLevel).average().orElse(0);
+                        double avgA = a.getValue().stream().mapToInt(BloodSugarRecord::getGlucoseLevel).average().orElse(0);
+                        double avgB = b.getValue().stream().mapToInt(BloodSugarRecord::getGlucoseLevel).average().orElse(0);
                         return Double.compare(avgB, avgA);
                     })
                     .map(Map.Entry::getKey)
@@ -492,10 +491,10 @@ class ReportRuleSupport {
                     .orElse("식후 혈당");
             worstSlot = worst;
 
-            List<BloodSugarLog> slotLogs = bs.afterMealByTimeSlot.get(worst);
+            List<BloodSugarRecord> slotLogs = bs.afterMealByTimeSlot.get(worst);
             if (slotLogs != null && !slotLogs.isEmpty()) {
                 highCount = slotLogs.stream().filter(this::isPostMealBloodSugarHigh).count();
-                avg = slotLogs.stream().mapToInt(BloodSugarLog::getGlucoseLevel).average().orElse(0);
+                avg = slotLogs.stream().mapToInt(BloodSugarRecord::getGlucoseLevel).average().orElse(0);
                 total = slotLogs.size();
                 detail = String.format("%d번 중 %d번 높음, 평균 %.0f (목표 %d)",
                         total, highCount, avg, HealthThresholds.BLOOD_SUGAR_POST_MEAL_NORMAL_MAX + 1);
@@ -545,14 +544,14 @@ class ReportRuleSupport {
         );
     }
 
-    private int calcBpNormalStreak(List<BloodPressureLog> bpLogs, LocalDate monday) {
-        Map<LocalDate, List<BloodPressureLog>> bpByDate = bpLogs.stream()
+    private int calcBpNormalStreak(List<BloodPressureRecord> bpLogs, LocalDate monday) {
+        Map<LocalDate, List<BloodPressureRecord>> bpByDate = bpLogs.stream()
                 .collect(Collectors.groupingBy(log -> log.getMeasuredAt().toLocalDate()));
         int streak = 0;
         int maxStreak = 0;
         for (int i = 0; i < WEEK_DAYS; i++) {
             LocalDate date = monday.plusDays(i);
-            List<BloodPressureLog> dayLogs = bpByDate.getOrDefault(date, List.of());
+            List<BloodPressureRecord> dayLogs = bpByDate.getOrDefault(date, List.of());
             if (dayLogs.isEmpty()) {
                 streak = 0;
                 continue;
@@ -568,14 +567,14 @@ class ReportRuleSupport {
         return maxStreak;
     }
 
-    private int calcBsNormalStreak(List<BloodSugarLog> bsLogs, LocalDate monday) {
-        Map<LocalDate, List<BloodSugarLog>> bsByDate = bsLogs.stream()
+    private int calcBsNormalStreak(List<BloodSugarRecord> bsLogs, LocalDate monday) {
+        Map<LocalDate, List<BloodSugarRecord>> bsByDate = bsLogs.stream()
                 .collect(Collectors.groupingBy(log -> log.getMeasurementTime().toLocalDate()));
         int streak = 0;
         int maxStreak = 0;
         for (int i = 0; i < WEEK_DAYS; i++) {
             LocalDate date = monday.plusDays(i);
-            List<BloodSugarLog> dayLogs = bsByDate.getOrDefault(date, List.of());
+            List<BloodSugarRecord> dayLogs = bsByDate.getOrDefault(date, List.of());
             if (dayLogs.isEmpty()) {
                 streak = 0;
                 continue;
@@ -591,7 +590,7 @@ class ReportRuleSupport {
         return maxStreak;
     }
 
-    private boolean isBloodSugarNormal(BloodSugarLog log) {
+    private boolean isBloodSugarNormal(BloodSugarRecord log) {
         int g = log.getGlucoseLevel();
         String label = log.getMeasurementLabel();
         if (label.contains("공복") || label.contains("식전")) {
@@ -600,7 +599,7 @@ class ReportRuleSupport {
         return g <= HealthThresholds.BLOOD_SUGAR_POST_MEAL_NORMAL_MAX;
     }
 
-    private String toMealTimeSlotLabel(BloodSugarLog log) {
+    private String toMealTimeSlotLabel(BloodSugarRecord log) {
         int hour = log.getMeasurementTime().getHour();
         if (hour >= 6 && hour < 11) return "아침 식후";
         if (hour >= 11 && hour < 15) return "점심 식후";
@@ -608,33 +607,33 @@ class ReportRuleSupport {
         return "기타 식후";
     }
 
-    private double calcAfterMealHighRatio(List<BloodSugarLog> logs) {
+    private double calcAfterMealHighRatio(List<BloodSugarRecord> logs) {
         if (logs.isEmpty()) return 0.0;
         long highCount = logs.stream().filter(this::isPostMealBloodSugarHigh).count();
         return (double) highCount / logs.size();
     }
 
-    private long countHypertensionLogs(List<BloodPressureLog> logs) {
+    private long countHypertensionLogs(List<BloodPressureRecord> logs) {
         return logs.stream()
                 .filter(l -> l.getSystolic() >= HealthThresholds.BLOOD_PRESSURE_HYPERTENSION_SYSTOLIC
                         || l.getDiastolic() >= HealthThresholds.BLOOD_PRESSURE_HYPERTENSION_DIASTOLIC)
                 .count();
     }
 
-    private boolean isBloodPressureNormal(BloodPressureLog log) {
+    private boolean isBloodPressureNormal(BloodPressureRecord log) {
         return log.getSystolic() <= HealthThresholds.BLOOD_PRESSURE_SYSTOLIC_NORMAL_MAX
                 && log.getDiastolic() <= HealthThresholds.BLOOD_PRESSURE_DIASTOLIC_NORMAL_MAX;
     }
 
-    private boolean isPostMealBloodSugarHigh(BloodSugarLog log) {
+    private boolean isPostMealBloodSugarHigh(BloodSugarRecord log) {
         return log.getGlucoseLevel() > HealthThresholds.BLOOD_SUGAR_POST_MEAL_NORMAL_MAX;
     }
 
-    private boolean isBloodSugarSeverelyHigh(BloodSugarLog log) {
+    private boolean isBloodSugarSeverelyHigh(BloodSugarRecord log) {
         return log.getGlucoseLevel() >= policy.getSevereHighBloodSugar();
     }
 
-    private boolean isBloodPressureSeverelyHigh(BloodPressureLog log) {
+    private boolean isBloodPressureSeverelyHigh(BloodPressureRecord log) {
         return log.getSystolic() >= policy.getSevereHighSystolic()
                 || log.getDiastolic() >= policy.getSevereHighDiastolic();
     }
@@ -684,14 +683,10 @@ class ReportRuleSupport {
         return linearRegressionSlope(x, y);
     }
 
-    private <T> int calcRecordDaysForLogs(
-            List<T> logs,
-            LocalDate monday,
-            java.util.function.Function<T, LocalDate> dateExtractor
-    ) {
+    private int calcRecordDaysForLogs(List<? extends TemporalRecord> logs, LocalDate monday) {
         LocalDate sunday = monday.plusDays(WEEK_DAYS - 1L);
         return (int) logs.stream()
-                .map(dateExtractor)
+                .map(log -> log.occurredAt().toLocalDate())
                 .filter(d -> !d.isBefore(monday) && !d.isAfter(sunday))
                 .distinct()
                 .count();
@@ -742,7 +737,7 @@ class ReportRuleSupport {
         int normalCount = 0;
         int severeHighCount = 0;
         double overallAvg = 0;
-        Map<String, List<BloodSugarLog>> afterMealByTimeSlot = new HashMap<>();
+        Map<String, List<BloodSugarRecord>> afterMealByTimeSlot = new HashMap<>();
     }
 
     static class BloodPressureStats {
