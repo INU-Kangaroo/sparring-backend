@@ -37,13 +37,13 @@ public class RecordReadService {
     }
 
     public List<FoodRecord> getFoodRecords(Long userId, LocalDateTime start, LocalDateTime end) {
-        return foodLogRepository.findByUserIdAndEatenAtBetweenAndIsDeletedFalse(userId, start, end).stream()
+        return foodLogRepository.findByUserIdAndEatenAtBetweenAndIsDeletedFalseOrderByEatenAtAsc(userId, start, end).stream()
                 .map(log -> new FoodRecord(log.getEatenAt(), log.getCalories()))
                 .toList();
     }
 
     public List<ExerciseRecord> getExerciseRecords(Long userId, LocalDateTime start, LocalDateTime end) {
-        return exerciseLogRepository.findByUserIdAndLoggedAtBetweenAndIsDeletedFalse(userId, start, end).stream()
+        return exerciseLogRepository.findByUserIdAndLoggedAtBetweenAndIsDeletedFalseOrderByLoggedAtDesc(userId, start, end).stream()
                 .map(log -> new ExerciseRecord(log.getLoggedAt(), log.getMetValue()))
                 .toList();
     }
