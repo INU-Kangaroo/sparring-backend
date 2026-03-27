@@ -100,8 +100,8 @@ jwt:
 
 # CORS Configuration
 cors:
-  allowed-origin-patterns:
-    - "*"
+  allowed-origins: []
+  allowed-origin-patterns: []
   allow-credentials: false
 
 app:
