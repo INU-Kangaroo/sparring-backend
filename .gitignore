@@ -1,4 +1,4 @@
-# General configuration (IDE, OS, and Tool-specific files)
+# OS / editor
 .DS_Store
 .vscode/
 .idea/
@@ -8,18 +8,17 @@
 *.swp
 *.swo
 *~
-HELP.md
 
-# Gradle specific
+# Build outputs
 .gradle
 build/
-!gradle/wrapper/gradle-wrapper.jar
-
-# IntelliJ IDEA
 out/
+bin/
+!gradle/wrapper/gradle-wrapper.jar
 !**/src/**/out/
+!**/src/**/bin/
 
-# STS (Spring Tool Suite)
+# Java IDE/project metadata
 .apt_generated
 .classpath
 .factorypath
@@ -27,37 +26,30 @@ out/
 .settings
 .springBeans
 .sts4-cache
-bin/
-!**/src/**/bin/
-
-# NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
 
-# Docker Compose (로컬 개발용만 무시)
-docker-compose-dev.yml
-# docker-compose-prod.yml 은 Git에 포함 (배포용)
-
-# SSL 인증서 및 Certbot 데이터 (EC2 서버에서 생성됨)
-certbot/
-nginx/*.applied
-
-# Environment Variables
+# Local env / secrets
 .env
 
-# Logs
+# Local runtime/data
+data/
 logs/
 *.log
 *.log.*
-
-# Temporary files
 *.tmp
 *.temp
+certbot/
+nginx/*.applied
 
-# Claude worktrees
+# Local tool files
 .claude/
+CLAUDE.md
+.venv-data/
+HELP.md
 
-data/
+# Local-only compose file (prod compose is tracked)
+docker-compose-dev.yml

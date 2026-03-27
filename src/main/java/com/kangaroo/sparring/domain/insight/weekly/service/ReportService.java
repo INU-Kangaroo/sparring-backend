@@ -1,13 +1,10 @@
 package com.kangaroo.sparring.domain.insight.weekly.service;
 
-import com.kangaroo.sparring.domain.exercise.log.entity.ExerciseLog;
-import com.kangaroo.sparring.domain.exercise.log.repository.ExerciseLogRepository;
-import com.kangaroo.sparring.domain.food.log.entity.FoodLog;
-import com.kangaroo.sparring.domain.food.log.repository.FoodLogRepository;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
-import com.kangaroo.sparring.domain.measurement.repository.BloodPressureLogRepository;
-import com.kangaroo.sparring.domain.measurement.repository.BloodSugarLogRepository;
+import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
+import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.DailyConditionEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.HighlightEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.ImprovementEvidence;
@@ -46,10 +43,7 @@ public class ReportService {
 
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
-    private final BloodSugarLogRepository bloodSugarLogRepository;
-    private final BloodPressureLogRepository bloodPressureLogRepository;
-    private final FoodLogRepository foodLogRepository;
-    private final ExerciseLogRepository exerciseLogRepository;
+    private final RecordReadService recordReadService;
     private final ReportGeminiService reportGeminiService;
     private final ReportRuleEngine reportRuleEngine;
 
@@ -92,7 +86,7 @@ public class ReportService {
 
         if (logs.bloodSugarLogs().isEmpty()
                 && logs.bloodPressureLogs().isEmpty()
-                && logs.mealLogs().isEmpty()
+                && logs.foodLogs().isEmpty()
                 && logs.exerciseLogs().isEmpty()) {
             throw new CustomException(ErrorCode.REPORT_INSUFFICIENT_DATA);
         }
@@ -101,7 +95,7 @@ public class ReportService {
                 monday,
                 logs.bloodSugarLogs(),
                 logs.bloodPressureLogs(),
-                logs.mealLogs(),
+                logs.foodLogs(),
                 logs.exerciseLogs()
         );
 
@@ -149,7 +143,7 @@ public class ReportService {
                 monday,
                 logs.bloodSugarLogs(),
                 logs.bloodPressureLogs(),
-                logs.mealLogs(),
+                logs.foodLogs(),
                 logs.exerciseLogs()
         );
 
@@ -160,17 +154,12 @@ public class ReportService {
         LocalDateTime startDt = monday.atStartOfDay();
         LocalDateTime endDt = sunday.atTime(LocalTime.MAX);
 
-        List<BloodSugarLog> bsLogs = bloodSugarLogRepository
-                .findByUserIdAndMeasurementTimeBetweenAndIsDeletedFalseOrderByMeasurementTimeAsc(
-                        userId, startDt, endDt);
-        List<BloodPressureLog> bpLogs = bloodPressureLogRepository
-                .findByUserIdAndMeasuredAtBetweenAndIsDeletedFalse(userId, startDt, endDt);
-        List<FoodLog> mealLogs = foodLogRepository
-                .findByUserIdAndEatenAtBetweenAndIsDeletedFalse(userId, startDt, endDt);
-        List<ExerciseLog> exerciseLogs = exerciseLogRepository
-                .findByUserIdAndLoggedAtBetweenAndIsDeletedFalse(userId, startDt, endDt);
+        List<BloodSugarRecord> bsLogs = recordReadService.getBloodSugarRecords(userId, startDt, endDt);
+        List<BloodPressureRecord> bpLogs = recordReadService.getBloodPressureRecords(userId, startDt, endDt);
+        List<FoodRecord> foodLogs = recordReadService.getFoodRecords(userId, startDt, endDt);
+        List<ExerciseRecord> exerciseLogs = recordReadService.getExerciseRecords(userId, startDt, endDt);
 
-        return new WeeklyLogs(bsLogs, bpLogs, mealLogs, exerciseLogs);
+        return new WeeklyLogs(bsLogs, bpLogs, foodLogs, exerciseLogs);
     }
 
     private ReportResponse toResponse(Report report, ReportEvidence evidence) {
@@ -235,10 +224,10 @@ public class ReportService {
     }
 
     private record WeeklyLogs(
-            List<BloodSugarLog> bloodSugarLogs,
-            List<BloodPressureLog> bloodPressureLogs,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs
+            List<BloodSugarRecord> bloodSugarLogs,
+            List<BloodPressureRecord> bloodPressureLogs,
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs
     ) {
     }
 }

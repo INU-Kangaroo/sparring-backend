@@ -1,14 +1,13 @@
 package com.kangaroo.sparring.domain.prediction.service;
 
-import com.kangaroo.sparring.domain.exercise.log.entity.ExerciseLog;
-import com.kangaroo.sparring.domain.exercise.log.repository.ExerciseLogRepository;
-import com.kangaroo.sparring.domain.food.catalog.entity.Food;
-import com.kangaroo.sparring.domain.food.catalog.entity.MealNutrition;
-import com.kangaroo.sparring.domain.food.catalog.repository.FoodRepository;
+import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
+import com.kangaroo.sparring.domain.catalog.entity.Food;
+import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
+import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
-import com.kangaroo.sparring.domain.measurement.repository.BloodSugarLogRepository;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import com.kangaroo.sparring.domain.prediction.client.MlServerClient;
 import com.kangaroo.sparring.domain.prediction.dto.res.GlucosePredictionResponse;
 import com.kangaroo.sparring.domain.survey.type.DrinkingFrequency;
@@ -18,7 +17,6 @@ import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,8 +35,7 @@ public class GlucosePredictionService {
 
     private static final int GLUCOSE_HISTORY_COUNT = 3;
 
-    private final BloodSugarLogRepository bloodSugarLogRepository;
-    private final ExerciseLogRepository exerciseLogRepository;
+    private final RecordReadService recordReadService;
     private final FoodRepository foodRepository;
     private final HealthProfileRepository healthProfileRepository;
     private final MlServerClient mlServerClient;
@@ -56,8 +53,8 @@ public class GlucosePredictionService {
                 .orElseThrow(() -> new CustomException(ErrorCode.HEALTH_PROFILE_NOT_FOUND));
 
         // 최근 혈당 기록 3개 조회
-        List<BloodSugarLog> recentLogs = bloodSugarLogRepository
-                .findRecentByUserId(user.getId(), PageRequest.of(0, GLUCOSE_HISTORY_COUNT));
+        List<BloodSugarRecord> recentLogs = recordReadService
+                .getRecentBloodSugarRecords(user.getId(), GLUCOSE_HISTORY_COUNT);
 
         if (recentLogs.isEmpty()) {
             throw new CustomException(ErrorCode.INSUFFICIENT_DATA_FOR_PREDICTION);
@@ -126,14 +123,10 @@ public class GlucosePredictionService {
 
     // 오늘 운동 기록에서 intensity 계산 (metValue 기준, 없으면 0)
     private double resolveTodayIntensity(Long userId) {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
-
-        List<ExerciseLog> todayLogs = exerciseLogRepository
-                .findByUserIdAndLoggedAtBetweenAndIsDeletedFalse(userId, startOfDay, endOfDay);
+        List<ExerciseRecord> todayLogs = recordReadService.getTodayExerciseRecords(userId, LocalDate.now());
 
         return todayLogs.stream()
-                .mapToDouble(ExerciseLog::getMetValue)
+                .mapToDouble(ExerciseRecord::getMetValue)
                 .map(met -> Math.min(met / 12.0, 1.0))
                 .max()
                 .orElse(0.0);

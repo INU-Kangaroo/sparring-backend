@@ -3,9 +3,10 @@ package com.kangaroo.sparring.domain.user.controller;
 import com.kangaroo.sparring.domain.user.dto.req.ChangePasswordRequest;
 import com.kangaroo.sparring.domain.user.dto.req.DeleteAccountRequest;
 import com.kangaroo.sparring.domain.user.dto.req.UpdateUserProfileRequest;
+import com.kangaroo.sparring.domain.user.dto.res.UserDashboardResponse;
 import com.kangaroo.sparring.domain.user.dto.res.UserProfileResponse;
-import com.kangaroo.sparring.domain.user.service.account.UserAccountService;
-import com.kangaroo.sparring.domain.user.service.profile.UserProfileService;
+import com.kangaroo.sparring.domain.user.service.UserAccountService;
+import com.kangaroo.sparring.domain.user.service.UserProfileService;
 import com.kangaroo.sparring.global.response.MessageResponse;
 import com.kangaroo.sparring.global.security.principal.PrincipalResolver;
 import com.kangaroo.sparring.global.security.principal.UserIdPrincipal;
@@ -39,7 +40,16 @@ public class UserController {
         return ResponseEntity.ok(userProfileService.getProfile(userId));
     }
 
-    @Operation(summary = "프로필 수정", description = "이름/생년월일/키/몸무게 수정")
+    @Operation(summary = "마이페이지 대시보드 조회", description = "마이페이지 메인 화면용 요약 정보 조회")
+    @GetMapping("/dashboard")
+    public ResponseEntity<UserDashboardResponse> getDashboard(
+            @AuthenticationPrincipal UserIdPrincipal principal
+    ) {
+        Long userId = PrincipalResolver.resolveUserId(principal);
+        return ResponseEntity.ok(userProfileService.getDashboard(userId));
+    }
+
+    @Operation(summary = "프로필 수정", description = "이름/생년월일/성별/키/몸무게/프로필 이미지 수정")
     @PatchMapping
     public ResponseEntity<UserProfileResponse> updateProfile(
             @AuthenticationPrincipal UserIdPrincipal principal,

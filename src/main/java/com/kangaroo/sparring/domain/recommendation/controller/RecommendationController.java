@@ -47,9 +47,7 @@ public class RecommendationController {
     ) {
         Long userId = PrincipalResolver.resolveUserId(principal);
         healthProfileGuardService.ensureProfileComplete(userId);
-        ExerciseRecommendationResponse response = exerciseRecommendationService
-                .refreshExerciseRecommendations(userId, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(exerciseRecommendationService.refreshExerciseRecommendations(userId, request));
     }
 
     @Operation(summary = "영양제 추천 조회", description = "사용자의 건강 정보를 기반으로 맞춤 영양제 추천")
@@ -71,8 +69,6 @@ public class RecommendationController {
     ) {
         Long userId = PrincipalResolver.resolveUserId(principal);
         healthProfileGuardService.ensureProfileComplete(userId);
-        SupplementRecommendationResponse response = supplementRecommendationService
-                .refreshSupplementRecommendations(userId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(supplementRecommendationService.refreshSupplementRecommendations(userId));
     }
 }

@@ -1,10 +1,9 @@
 package com.kangaroo.sparring.domain.insight.today.service;
 
 import com.kangaroo.sparring.domain.insight.today.type.InsightType;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
-import com.kangaroo.sparring.domain.measurement.repository.BloodPressureLogRepository;
-import com.kangaroo.sparring.domain.measurement.repository.BloodSugarLogRepository;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InsightContextBuilder {
 
-    private final BloodSugarLogRepository bloodSugarLogRepository;
-    private final BloodPressureLogRepository bloodPressureLogRepository;
+    private final RecordReadService recordReadService;
 
     // 정상 범위 상수
     private static final int FASTING_SUGAR_NORMAL_MAX = 100;
@@ -33,10 +31,8 @@ public class InsightContextBuilder {
         LocalDateTime start = LocalDate.now().minusDays(DAYS_LOOKBACK).atStartOfDay();
         LocalDateTime end = LocalDateTime.now();
 
-        List<BloodSugarLog> sugarLogs = bloodSugarLogRepository
-                .findByUserIdAndDateRange(userId, start, end);
-        List<BloodPressureLog> pressureLogs = bloodPressureLogRepository
-                .findByUserIdAndDateRange(userId, start, end);
+        List<BloodSugarRecord> sugarLogs = recordReadService.getBloodSugarRecords(userId, start, end);
+        List<BloodPressureRecord> pressureLogs = recordReadService.getBloodPressureRecords(userId, start, end);
 
         if (sugarLogs.isEmpty() && pressureLogs.isEmpty()) {
             return InsightContext.of(InsightType.NO_DATA, sugarLogs, pressureLogs);
@@ -46,8 +42,8 @@ public class InsightContextBuilder {
         return InsightContext.of(type, sugarLogs, pressureLogs);
     }
 
-    private InsightType classify(List<BloodSugarLog> sugarLogs,
-                                 List<BloodPressureLog> pressureLogs) {
+    private InsightType classify(List<BloodSugarRecord> sugarLogs,
+                                 List<BloodPressureRecord> pressureLogs) {
         boolean sugarStable = isConsecutiveNormalFasting(sugarLogs);
         boolean sugarHigh = isConsecutiveHighSugar(sugarLogs);
         boolean pressureStable = isRecentPressureStable(pressureLogs);
@@ -65,7 +61,7 @@ public class InsightContextBuilder {
     }
 
     // 최근 N일 중 공복 혈당이 연속으로 정상(70~99)인지
-    private boolean isConsecutiveNormalFasting(List<BloodSugarLog> logs) {
+    private boolean isConsecutiveNormalFasting(List<BloodSugarRecord> logs) {
         if (logs.isEmpty()) return false;
         long normalStreakDays = consecutiveDays(logs.stream()
                 .filter(l -> l.getMeasurementLabel().contains("공복"))
@@ -78,7 +74,7 @@ public class InsightContextBuilder {
         return normalStreakDays >= STABLE_CONSECUTIVE_DAYS;
     }
 
-    private boolean isConsecutiveHighSugar(List<BloodSugarLog> logs) {
+    private boolean isConsecutiveHighSugar(List<BloodSugarRecord> logs) {
         if (logs.isEmpty()) return false;
         long highStreakDays = consecutiveDays(logs.stream()
                 .filter(l -> l.getGlucoseLevel() >= FASTING_SUGAR_HIGH)
@@ -89,7 +85,7 @@ public class InsightContextBuilder {
         return highStreakDays >= 2;
     }
 
-    private boolean isRecentPressureStable(List<BloodPressureLog> logs) {
+    private boolean isRecentPressureStable(List<BloodPressureRecord> logs) {
         if (logs.isEmpty()) return false;
         long stableStreakDays = consecutiveDays(logs.stream()
                 .filter(l -> l.getSystolic() < SYSTOLIC_HIGH)
@@ -100,7 +96,7 @@ public class InsightContextBuilder {
         return stableStreakDays >= STABLE_CONSECUTIVE_DAYS;
     }
 
-    private boolean isRecentPressureHigh(List<BloodPressureLog> logs) {
+    private boolean isRecentPressureHigh(List<BloodPressureRecord> logs) {
         if (logs.isEmpty()) return false;
         long highStreakDays = consecutiveDays(logs.stream()
                 .filter(l -> l.getSystolic() >= SYSTOLIC_HIGH)
@@ -133,18 +129,18 @@ public class InsightContextBuilder {
     @Builder(builderClassName = "InsightContextLombokBuilder")
     public static class InsightContext {
         private InsightType type;
-        private List<BloodSugarLog> sugarLogs;
-        private List<BloodPressureLog> pressureLogs;
+        private List<BloodSugarRecord> sugarLogs;
+        private List<BloodPressureRecord> pressureLogs;
 
         // 프롬프트용 요약 데이터
         private Double avgGlucose;
         private Integer latestSystolic;
 
         public static InsightContext of(InsightType type,
-                                        List<BloodSugarLog> sugarLogs,
-                                        List<BloodPressureLog> pressureLogs) {
+                                        List<BloodSugarRecord> sugarLogs,
+                                        List<BloodPressureRecord> pressureLogs) {
             Double avg = sugarLogs.isEmpty() ? null :
-                    sugarLogs.stream().mapToInt(BloodSugarLog::getGlucoseLevel)
+                    sugarLogs.stream().mapToInt(BloodSugarRecord::getGlucoseLevel)
                             .average().orElse(0);
             Integer systolic = pressureLogs.isEmpty() ? null :
                     pressureLogs.get(pressureLogs.size() - 1).getSystolic();
