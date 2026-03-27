@@ -25,9 +25,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,10 +48,11 @@ public class ReportService {
     private final RecordReadService recordReadService;
     private final ReportGeminiService reportGeminiService;
     private final ReportRuleEngine reportRuleEngine;
+    private final Clock kstClock;
 
     @Transactional
     public ReportResponse getReportByDate(Long userId, LocalDate date) {
-        LocalDate baseDate = date != null ? date : LocalDate.now();
+        LocalDate baseDate = date != null ? date : LocalDate.now(kstClock);
         LocalDate monday = getMonday(baseDate);
         LocalDate sunday = monday.plusDays(6);
 
@@ -131,9 +134,14 @@ public class ReportService {
                 improvementDetail,
                 improvementTips
         );
-        reportRepository.save(report);
-
-        return toResponse(report, evidence);
+        try {
+            reportRepository.save(report);
+            return toResponse(report, evidence);
+        } catch (DataIntegrityViolationException ex) {
+            return reportRepository.findByUserIdAndStartDate(userId, monday)
+                    .map(existing -> buildResponse(existing, userId, monday, sunday))
+                    .orElseThrow(() -> ex);
+        }
     }
 
     private ReportResponse buildResponse(Report report, Long userId, LocalDate monday, LocalDate sunday) {
