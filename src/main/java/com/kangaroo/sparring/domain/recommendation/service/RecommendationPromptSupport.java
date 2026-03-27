@@ -1,8 +1,8 @@
 package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,8 +15,8 @@ public final class RecommendationPromptSupport {
     }
 
     public static String buildUserHealthInfo(HealthProfile healthProfile,
-                                             List<BloodSugarLog> bloodSugars,
-                                             List<BloodPressureLog> bloodPressures) {
+                                             List<BloodSugarRecord> bloodSugars,
+                                             List<BloodPressureRecord> bloodPressures) {
         StringBuilder prompt = new StringBuilder();
 
         Integer age = calculateAge(healthProfile.getBirthDate());
@@ -31,7 +31,7 @@ public final class RecommendationPromptSupport {
 
         if (!bloodSugars.isEmpty()) {
             double avgBloodSugar = bloodSugars.stream()
-                    .mapToInt(BloodSugarLog::getGlucoseLevel)
+                    .mapToInt(BloodSugarRecord::getGlucoseLevel)
                     .average()
                     .orElse(0);
             prompt.append(String.format("- 평균 혈당: %.1fmg/dL%n", avgBloodSugar));
@@ -39,11 +39,11 @@ public final class RecommendationPromptSupport {
 
         if (!bloodPressures.isEmpty()) {
             double avgSystolic = bloodPressures.stream()
-                    .mapToInt(BloodPressureLog::getSystolic)
+                    .mapToInt(BloodPressureRecord::getSystolic)
                     .average()
                     .orElse(0);
             double avgDiastolic = bloodPressures.stream()
-                    .mapToInt(BloodPressureLog::getDiastolic)
+                    .mapToInt(BloodPressureRecord::getDiastolic)
                     .average()
                     .orElse(0);
             prompt.append(String.format("- 평균 혈압: %.0f/%.0fmmHg%n", avgSystolic, avgDiastolic));

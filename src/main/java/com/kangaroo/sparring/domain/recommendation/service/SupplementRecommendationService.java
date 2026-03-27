@@ -3,8 +3,8 @@ package com.kangaroo.sparring.domain.recommendation.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementDto;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.entity.SupplementRecommendation;
@@ -63,9 +63,9 @@ public class SupplementRecommendationService {
 
     private SupplementRecommendationResponse generateNewSupplementRecommendations(User user) {
         HealthProfile healthProfile = recommendationContextService.getOrCreateHealthProfile(user.getId());
-        List<BloodSugarLog> recentBloodSugars =
+        List<BloodSugarRecord> recentBloodSugars =
                 recommendationContextService.getRecentBloodSugars(user.getId(), RECENT_MEASUREMENT_COUNT);
-        List<BloodPressureLog> recentBloodPressures =
+        List<BloodPressureRecord> recentBloodPressures =
                 recommendationContextService.getRecentBloodPressures(user.getId(), RECENT_MEASUREMENT_COUNT);
 
         String prompt = buildSupplementPrompt(healthProfile, recentBloodSugars, recentBloodPressures);
@@ -83,8 +83,8 @@ public class SupplementRecommendationService {
     }
 
     private String buildSupplementPrompt(HealthProfile healthProfile,
-                                         List<BloodSugarLog> bloodSugars,
-                                         List<BloodPressureLog> bloodPressures) {
+                                         List<BloodSugarRecord> bloodSugars,
+                                         List<BloodPressureRecord> bloodPressures) {
         String userHealthInfo = RecommendationPromptSupport.buildUserHealthInfo(healthProfile, bloodSugars, bloodPressures);
         return promptTemplateService.renderSupplementPrompt(Map.of(
                 "USER_HEALTH_INFO", userHealthInfo

@@ -1,9 +1,10 @@
 package com.kangaroo.sparring.domain.insight.weekly.service;
 
-import com.kangaroo.sparring.domain.exercise.log.entity.ExerciseLog;
-import com.kangaroo.sparring.domain.food.log.entity.FoodLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
+import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
+import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.read.TemporalRecord;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.CommentEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.DailyConditionEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.HighlightEvidence;
@@ -17,7 +18,6 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 
 @Component
 @RequiredArgsConstructor
@@ -29,19 +29,19 @@ public class ReportRuleEngine {
 
     public ReportEvidence evaluate(
             LocalDate monday,
-            List<BloodSugarLog> bsLogs,
-            List<BloodPressureLog> bpLogs,
-            List<FoodLog> mealLogs,
-            List<ExerciseLog> exerciseLogs
+            List<BloodSugarRecord> bsLogs,
+            List<BloodPressureRecord> bpLogs,
+            List<FoodRecord> foodLogs,
+            List<ExerciseRecord> exerciseLogs
     ) {
         ReportRuleSupport.BloodSugarStats bs = reportRuleSupport.calcBloodSugarStats(bsLogs);
         ReportRuleSupport.BloodPressureStats bp = reportRuleSupport.calcBloodPressureStats(bpLogs);
-        ReportRuleSupport.MealStats meal = reportRuleSupport.calcMealStats(mealLogs);
+        ReportRuleSupport.MealStats meal = reportRuleSupport.calcMealStats(foodLogs);
         ReportRuleSupport.ExerciseStats exercise = reportRuleSupport.calcExerciseStats(exerciseLogs);
 
         int healthManagement = reportRuleSupport.calcHealthManagementScore(bs, bp);
-        int bsRecordDays = calcMeasurementRecordDays(bsLogs, monday, BloodSugarLog::getMeasurementTime);
-        int bpRecordDays = calcMeasurementRecordDays(bpLogs, monday, BloodPressureLog::getMeasuredAt);
+        int bsRecordDays = calcMeasurementRecordDays(bsLogs, monday);
+        int bpRecordDays = calcMeasurementRecordDays(bpLogs, monday);
         int measurementConsistency = reportRuleSupport.calcMeasurementConsistencyScore(bsRecordDays, bpRecordDays);
         int lifestyle = reportRuleSupport.calcLifestyleScore(meal, exercise);
         int stability = reportRuleSupport.calcStabilityScore(bsLogs, bpLogs);
@@ -53,14 +53,14 @@ public class ReportRuleEngine {
                 stability,
                 trend,
                 bsLogs.isEmpty() && bpLogs.isEmpty(),
-                mealLogs.isEmpty() && exerciseLogs.isEmpty()
+                foodLogs.isEmpty() && exerciseLogs.isEmpty()
         );
 
         List<DailyConditionEvidence> dailyConditions = reportRuleSupport.buildDailyConditions(
-                monday, bsLogs, bpLogs, mealLogs, exerciseLogs
+                monday, bsLogs, bpLogs, foodLogs, exerciseLogs
         );
         List<HighlightEvidence> highlights = reportRuleSupport.buildHighlights(
-                bsLogs, bpLogs, mealLogs, exerciseLogs, monday
+                bsLogs, bpLogs, foodLogs, exerciseLogs, monday
         );
         ImprovementEvidence improvement = reportRuleSupport.selectImprovementArea(bs, bp, meal, exercise);
 
@@ -69,13 +69,13 @@ public class ReportRuleEngine {
                 bp.totalCount > 0 ? bp.systolicAvg : null,
                 meal.totalCount > 0 ? meal.avgCaloriesPerDay : null,
                 exercise.totalCount > 0 ? exercise.totalCount : null,
-                calcRecordDays(bsLogs, bpLogs, mealLogs, exerciseLogs, monday)
+                calcRecordDays(bsLogs, bpLogs, foodLogs, exerciseLogs, monday)
         );
 
         return new ReportEvidence(
                 comment.recordDays(),
-                calcMeasurementRecordDays(bsLogs, monday, BloodSugarLog::getMeasurementTime),
-                calcMeasurementRecordDays(bpLogs, monday, BloodPressureLog::getMeasuredAt),
+                calcMeasurementRecordDays(bsLogs, monday),
+                calcMeasurementRecordDays(bpLogs, monday),
                 new ScoreEvidence(healthManagement, measurementConsistency, lifestyle, overall),
                 dailyConditions,
                 highlights,
@@ -85,30 +85,26 @@ public class ReportRuleEngine {
     }
 
     private int calcRecordDays(
-            List<BloodSugarLog> bs,
-            List<BloodPressureLog> bp,
-            List<FoodLog> meal,
-            List<ExerciseLog> exercise,
+            List<BloodSugarRecord> bs,
+            List<BloodPressureRecord> bp,
+            List<FoodRecord> meal,
+            List<ExerciseRecord> exercise,
             LocalDate monday
     ) {
         Set<LocalDate> recordedDates = new HashSet<>();
-        bs.forEach(l -> recordedDates.add(l.getMeasurementTime().toLocalDate()));
-        bp.forEach(l -> recordedDates.add(l.getMeasuredAt().toLocalDate()));
-        meal.forEach(l -> recordedDates.add(l.getEatenAt().toLocalDate()));
-        exercise.forEach(l -> recordedDates.add(l.getLoggedAt().toLocalDate()));
+        bs.forEach(l -> recordedDates.add(l.occurredAt().toLocalDate()));
+        bp.forEach(l -> recordedDates.add(l.occurredAt().toLocalDate()));
+        meal.forEach(l -> recordedDates.add(l.occurredAt().toLocalDate()));
+        exercise.forEach(l -> recordedDates.add(l.occurredAt().toLocalDate()));
         return (int) recordedDates.stream()
                 .filter(d -> !d.isBefore(monday) && !d.isAfter(monday.plusDays(WEEK_DAYS - 1L)))
                 .count();
     }
 
-    private <T> int calcMeasurementRecordDays(
-            List<T> logs,
-            LocalDate monday,
-            Function<T, java.time.LocalDateTime> timeExtractor
-    ) {
+    private int calcMeasurementRecordDays(List<? extends TemporalRecord> logs, LocalDate monday) {
         LocalDate sunday = monday.plusDays(WEEK_DAYS - 1L);
         return (int) logs.stream()
-                .map(log -> timeExtractor.apply(log).toLocalDate())
+                .map(log -> log.occurredAt().toLocalDate())
                 .filter(date -> !date.isBefore(monday) && !date.isAfter(sunday))
                 .distinct()
                 .count();
