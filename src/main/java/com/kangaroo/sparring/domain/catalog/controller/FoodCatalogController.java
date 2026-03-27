@@ -1,8 +1,8 @@
 package com.kangaroo.sparring.domain.catalog.controller;
 
-import com.kangaroo.sparring.domain.food.catalog.dto.res.FoodDetailResponse;
-import com.kangaroo.sparring.domain.food.catalog.dto.res.FoodResponse;
-import com.kangaroo.sparring.domain.food.catalog.service.FoodService;
+import com.kangaroo.sparring.domain.catalog.dto.res.FoodDetailResponse;
+import com.kangaroo.sparring.domain.catalog.dto.res.FoodResponse;
+import com.kangaroo.sparring.domain.catalog.service.FoodService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

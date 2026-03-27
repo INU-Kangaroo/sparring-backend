@@ -1,7 +1,7 @@
-package com.kangaroo.sparring.domain.food.catalog.dto.res;
+package com.kangaroo.sparring.domain.catalog.dto.res;
 
-import com.kangaroo.sparring.domain.food.catalog.entity.Food;
-import com.kangaroo.sparring.domain.food.catalog.entity.MealNutrition;
+import com.kangaroo.sparring.domain.catalog.entity.Food;
+import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,11 +1,11 @@
-package com.kangaroo.sparring.domain.food.catalog.service;
+package com.kangaroo.sparring.domain.catalog.service;
 
-import com.kangaroo.sparring.domain.food.catalog.dto.res.FoodDetailResponse;
-import com.kangaroo.sparring.domain.food.catalog.dto.res.FoodResponse;
-import com.kangaroo.sparring.domain.food.catalog.entity.Food;
-import com.kangaroo.sparring.domain.food.catalog.entity.MealNutrition;
-import com.kangaroo.sparring.domain.food.catalog.repository.FoodRepository;
-import com.kangaroo.sparring.domain.food.catalog.repository.MealNutritionRepository;
+import com.kangaroo.sparring.domain.catalog.dto.res.FoodDetailResponse;
+import com.kangaroo.sparring.domain.catalog.dto.res.FoodResponse;
+import com.kangaroo.sparring.domain.catalog.entity.Food;
+import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
+import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
+import com.kangaroo.sparring.domain.catalog.repository.MealNutritionRepository;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

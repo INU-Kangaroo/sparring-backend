@@ -1,6 +1,6 @@
-package com.kangaroo.sparring.domain.food.catalog.repository;
+package com.kangaroo.sparring.domain.catalog.repository;
 
-import com.kangaroo.sparring.domain.food.catalog.entity.MealNutrition;
+import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
