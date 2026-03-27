@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.security.SecureRandom;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -154,7 +155,18 @@ public class EmailService {
         String verificationId = generateVerificationId();
         saveVerification(verificationId, email, code, userId);
         startResendCooldown(email);
-        emailAsyncSender.sendVerificationCode(email, code);
+        try {
+            // API 성공 응답 이전에 실제 발송 성공을 보장한다.
+            emailAsyncSender.sendVerificationCode(email, code).join();
+        } catch (CompletionException e) {
+            // 발송 실패 시 생성된 인증 상태를 정리해 재시도 가능하도록 한다.
+            deleteVerification(verificationId, email);
+            clearResendCooldown(email);
+            if (e.getCause() instanceof CustomException customException) {
+                throw customException;
+            }
+            throw new CustomException(ErrorCode.EMAIL_SEND_FAILED);
+        }
 
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CODE_EXPIRATION_MINUTES);
         log.info("{}: email={}, verificationId={}", logMessage, email, verificationId);
@@ -177,6 +189,10 @@ public class EmailService {
                 RESEND_COOLDOWN_SECONDS,
                 TimeUnit.SECONDS
         );
+    }
+
+    private void clearResendCooldown(String email) {
+        redisTemplate.delete(RESEND_COOLDOWN_PREFIX + email);
     }
 
     private void deleteVerification(String verificationId, String email) {

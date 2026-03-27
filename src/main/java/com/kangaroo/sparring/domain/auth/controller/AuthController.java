@@ -99,8 +99,8 @@ public class AuthController {
     )
     @ApiResponses({
             @ApiResponse(
-                    responseCode = "201",
-                    description = "Created",
+                    responseCode = "200",
+                    description = "OK",
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(
@@ -138,8 +138,8 @@ public class AuthController {
     @Operation(summary = "회원가입", description = "이메일/비밀번호 회원가입 (이메일 인증 필요)")
     @ApiResponses({
             @ApiResponse(
-                    responseCode = "200",
-                    description = "OK",
+                    responseCode = "201",
+                    description = "Created",
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(

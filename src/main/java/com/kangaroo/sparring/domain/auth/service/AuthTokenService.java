@@ -20,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AuthTokenService {
 
+    private static final String DUMMY_BCRYPT_HASH =
+            "$2a$10$7EqJtq98hPqEX7fNZaFWoOHiM8w6RzGQKxW0fvkYl9wH14r2raXI6";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
@@ -29,8 +32,12 @@ public class AuthTokenService {
     public AuthResponse login(LoginRequest request) {
         log.info("로그인 시도: {}", request.getEmail());
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        if (user == null) {
+            // 존재하지 않는 계정도 동일한 비용의 검증을 수행해 계정 유무 추측을 어렵게 한다.
+            passwordEncoder.matches(request.getPassword(), DUMMY_BCRYPT_HASH);
+            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
@@ -86,6 +93,7 @@ public class AuthTokenService {
 
         Long userId = jwtUtil.getUserIdFromToken(accessToken);
         refreshTokenService.deleteRefreshToken(userId);
+        refreshTokenService.revokeAccessTokens(userId);
         log.info("로그아웃 성공: userId={}", userId);
     }
 

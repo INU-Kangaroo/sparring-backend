@@ -1,9 +1,8 @@
 package com.kangaroo.sparring.global.security.jwt;
 
-import com.kangaroo.sparring.domain.user.entity.User;
-import com.kangaroo.sparring.domain.user.repository.UserRepository;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
+import com.kangaroo.sparring.global.security.oauth2.service.RefreshTokenService;
 import com.kangaroo.sparring.global.security.principal.CurrentUser;
 import com.kangaroo.sparring.global.security.principal.SecurityAuthorities;
 import jakarta.servlet.FilterChain;
@@ -14,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -22,6 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Date;
 
 /**
  * Authorization Header 의 Bearer token 을 parsing 하여 Authentication 정보를 SecurityContext 에 저장하는 역할을 한다.
@@ -36,9 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String REFRESH_ENDPOINT = "/api/auth/refresh";
 
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+    private final RefreshTokenService refreshTokenService;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
-    private final JwtAccessDeniedHandler accessDeniedHandler;
 
     @Override
     protected void doFilterInternal(
@@ -61,27 +59,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
                 Long userId = jwtUtil.getUserIdFromToken(token);
-                User user = userRepository.findById(userId).orElse(null);
-
-                if (user == null) {
+                String email = jwtUtil.getEmailFromToken(token);
+                if (!StringUtils.hasText(email)) {
                     authenticationEntryPoint.commence(
                             request,
                             response,
-                            new InsufficientAuthenticationException("사용자를 찾을 수 없습니다.")
+                            new InsufficientAuthenticationException("유효하지 않은 토큰입니다.")
                     );
                     return;
                 }
-
-                if (!user.getIsActive() || user.isDeleted()) {
-                    accessDeniedHandler.handle(
+                Date issuedAtDate = jwtUtil.getIssuedAtFromToken(token);
+                if (issuedAtDate == null) {
+                    authenticationEntryPoint.commence(
                             request,
                             response,
-                            new AccessDeniedException("비활성 또는 삭제된 사용자입니다.")
+                            new InsufficientAuthenticationException("유효하지 않은 토큰입니다.")
+                    );
+                    return;
+                }
+                long issuedAt = issuedAtDate.getTime();
+                if (refreshTokenService.isAccessTokenRevoked(userId, issuedAt)) {
+                    authenticationEntryPoint.commence(
+                            request,
+                            response,
+                            new InsufficientAuthenticationException("무효화된 토큰입니다.")
                     );
                     return;
                 }
 
-                UsernamePasswordAuthenticationToken authentication = buildAuthentication(user, request);
+                UsernamePasswordAuthenticationToken authentication = buildAuthentication(userId, email, request);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (CustomException e) {
                 if (e.getErrorCode() == ErrorCode.EXPIRED_TOKEN) {
@@ -117,11 +123,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 
-    private UsernamePasswordAuthenticationToken buildAuthentication(User user, HttpServletRequest request) {
+    private UsernamePasswordAuthenticationToken buildAuthentication(Long userId, String email, HttpServletRequest request) {
         CurrentUser principal = CurrentUser.fromJwt(
-                user.getId(),
-                user.getEmail(),
-                user.getPassword(),
+                userId,
+                email,
                 SecurityAuthorities.userAuthorities()
         );
 
