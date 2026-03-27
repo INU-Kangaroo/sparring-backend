@@ -32,7 +32,11 @@ public class BloodSugarController {
 
     private final BloodSugarService bloodSugarService;
 
-    @Operation(summary = "혈당 측정 기록 등록", description = "혈당 기록 등록 및 AI 예측 자동 생성")
+    @Operation(
+            summary = "[삭제 예정] 혈당 측정 기록 등록",
+            description = "혈당 기록 등록. 대체: POST /api/records/blood-sugar",
+            deprecated = true
+    )
     @PostMapping("/logs")
     public ResponseEntity<BloodSugarLogResponse> createBloodSugarLog(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -45,7 +49,11 @@ public class BloodSugarController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "혈당 측정 기록 조회 (기간)", description = "특정 기간 혈당 기록 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈당 측정 기록 조회 (기간)",
+            description = "특정 기간 혈당 기록 조회. 대체: GET /api/records/blood-sugar?period=range",
+            deprecated = true
+    )
     @GetMapping("/logs")
     public ResponseEntity<List<BloodSugarLogResponse>> getBloodSugarLogs(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -66,7 +74,11 @@ public class BloodSugarController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "혈당 측정 기록 조회 (월)", description = "특정 연도/월 혈당 기록 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈당 측정 기록 조회 (월)",
+            description = "특정 연도/월 혈당 기록 조회. 대체: GET /api/records/blood-sugar?period=monthly",
+            deprecated = true
+    )
     @GetMapping("/logs/monthly")
     public ResponseEntity<List<BloodSugarLogResponse>> getBloodSugarLogsByMonth(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -83,7 +95,11 @@ public class BloodSugarController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "혈당 측정 기록 조회 (일)", description = "특정 날짜 혈당 기록 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈당 측정 기록 조회 (일)",
+            description = "특정 날짜 혈당 기록 조회. 대체: GET /api/records/blood-sugar?period=daily",
+            deprecated = true
+    )
     @GetMapping("/logs/daily")
     public ResponseEntity<List<BloodSugarLogResponse>> getBloodSugarLogsByDate(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -97,7 +113,11 @@ public class BloodSugarController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "월별 혈당 집계 조회", description = "특정 연도 월별 혈당 통계 조회 (1월~12월)")
+    @Operation(
+            summary = "[삭제 예정] 월별 혈당 집계 조회",
+            description = "특정 연도 월별 혈당 통계 조회 (1월~12월). 대체: GET /api/records/blood-sugar?period=monthly",
+            deprecated = true
+    )
     @GetMapping("/logs/monthly-stats")
     public ResponseEntity<List<MonthlyBloodSugarResponse>> getMonthlyBloodSugar(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -112,7 +132,11 @@ public class BloodSugarController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "혈당 예측 조회", description = "특정 기간 혈당 예측 결과 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈당 예측 조회",
+            description = "특정 기간 혈당 예측 결과 조회. 대체 경로 확정 전까지 호환 유지",
+            deprecated = true
+    )
     @GetMapping("/predictions")
     public ResponseEntity<List<BloodSugarPredictionResponse>> getBloodSugarPredictions(
             @AuthenticationPrincipal UserIdPrincipal principal,

@@ -32,7 +32,11 @@ public class BloodPressureController {
 
     private final BloodPressureService bloodPressureService;
 
-    @Operation(summary = "혈압 측정 기록 등록", description = "혈압 기록 등록 및 AI 예측 자동 생성")
+    @Operation(
+            summary = "[삭제 예정] 혈압 측정 기록 등록",
+            description = "혈압 기록 등록. 대체: POST /api/records/blood-pressure",
+            deprecated = true
+    )
     @PostMapping("/logs")
     public ResponseEntity<BloodPressureLogResponse> createBloodPressureLog(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -45,7 +49,11 @@ public class BloodPressureController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "혈압 측정 기록 조회 (기간)", description = "특정 기간 혈압 기록 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈압 측정 기록 조회 (기간)",
+            description = "특정 기간 혈압 기록 조회. 대체: GET /api/records/blood-pressure?period=range",
+            deprecated = true
+    )
     @GetMapping("/logs")
     public ResponseEntity<List<BloodPressureLogResponse>> getBloodPressureLogs(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -66,7 +74,11 @@ public class BloodPressureController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "혈압 측정 기록 조회 (월)", description = "특정 연도/월 혈압 기록 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈압 측정 기록 조회 (월)",
+            description = "특정 연도/월 혈압 기록 조회. 대체: GET /api/records/blood-pressure?period=monthly",
+            deprecated = true
+    )
     @GetMapping("/logs/monthly")
     public ResponseEntity<List<BloodPressureLogResponse>> getBloodPressureLogsByMonth(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -83,7 +95,11 @@ public class BloodPressureController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "혈압 측정 기록 조회 (일)", description = "특정 날짜 혈압 기록 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈압 측정 기록 조회 (일)",
+            description = "특정 날짜 혈압 기록 조회. 대체: GET /api/records/blood-pressure?period=daily",
+            deprecated = true
+    )
     @GetMapping("/logs/daily")
     public ResponseEntity<List<BloodPressureLogResponse>> getBloodPressureLogsByDate(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -97,7 +113,11 @@ public class BloodPressureController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "혈압 예측 조회", description = "특정 기간 혈압 예측 데이터 조회")
+    @Operation(
+            summary = "[삭제 예정] 혈압 예측 조회",
+            description = "특정 기간 혈압 예측 데이터 조회. 대체 경로 확정 전까지 호환 유지",
+            deprecated = true
+    )
     @GetMapping("/predictions")
     public ResponseEntity<List<BloodPressurePredictionResponse>> getBloodPressurePredictions(
             @AuthenticationPrincipal UserIdPrincipal principal,
@@ -114,7 +134,11 @@ public class BloodPressureController {
         return ResponseEntity.ok(responses);
     }
 
-    @Operation(summary = "월별 혈압 집계 조회", description = "특정 연도 월별 혈압 통계 조회 (1월~12월)")
+    @Operation(
+            summary = "[삭제 예정] 월별 혈압 집계 조회",
+            description = "특정 연도 월별 혈압 통계 조회 (1월~12월). 대체: GET /api/records/blood-pressure?period=monthly",
+            deprecated = true
+    )
     @GetMapping("/logs/monthly-stats")
     public ResponseEntity<List<MonthlyBloodPressureResponse>> getMonthlyBloodPressure(
             @AuthenticationPrincipal UserIdPrincipal principal,
