@@ -1,12 +1,12 @@
 package com.kangaroo.sparring.domain.recommendation.service;
 
-import com.kangaroo.sparring.domain.exercise.catalog.service.ExerciseCandidateService;
-import com.kangaroo.sparring.domain.exercise.catalog.entity.Exercise;
+import com.kangaroo.sparring.domain.catalog.service.ExerciseCandidateService;
+import com.kangaroo.sparring.domain.catalog.entity.Exercise;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
 import com.kangaroo.sparring.domain.recommendation.dto.req.ExerciseRecommendationRequest;
 import com.kangaroo.sparring.domain.recommendation.dto.res.CardiacExerciseDto;
 import com.kangaroo.sparring.domain.recommendation.dto.res.ExerciseRecommendationResponse;
@@ -76,9 +76,9 @@ public class ExerciseRecommendationService {
 
     private ExerciseRecommendationResponse generateNewExerciseRecommendations(User user, ExerciseRecommendationRequest request) {
         HealthProfile healthProfile = recommendationContextService.getOrCreateHealthProfile(user.getId());
-        List<BloodSugarLog> recentBloodSugars =
+        List<BloodSugarRecord> recentBloodSugars =
                 recommendationContextService.getRecentBloodSugars(user.getId(), RECENT_MEASUREMENT_COUNT);
-        List<BloodPressureLog> recentBloodPressures =
+        List<BloodPressureRecord> recentBloodPressures =
                 recommendationContextService.getRecentBloodPressures(user.getId(), RECENT_MEASUREMENT_COUNT);
 
         // 마스터 테이블 필터링으로 후보 생성
@@ -107,8 +107,8 @@ public class ExerciseRecommendationService {
     }
 
     private String buildExercisePrompt(HealthProfile healthProfile,
-                                       List<BloodSugarLog> bloodSugars,
-                                       List<BloodPressureLog> bloodPressures,
+                                       List<BloodSugarRecord> bloodSugars,
+                                       List<BloodPressureRecord> bloodPressures,
                                        ExerciseRecommendationRequest request,
                                        String candidatesText) {
         String userHealthInfo = RecommendationPromptSupport.buildUserHealthInfo(healthProfile, bloodSugars, bloodPressures);

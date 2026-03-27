@@ -10,15 +10,13 @@ import com.kangaroo.sparring.domain.chatbot.session.ChatSessionRepository;
 import com.kangaroo.sparring.domain.chatbot.type.MessageRole;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
-import com.kangaroo.sparring.domain.measurement.entity.BloodPressureLog;
-import com.kangaroo.sparring.domain.measurement.entity.BloodSugarLog;
-import com.kangaroo.sparring.domain.measurement.repository.BloodPressureLogRepository;
-import com.kangaroo.sparring.domain.measurement.repository.BloodSugarLogRepository;
+import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.Disposable;
@@ -44,8 +42,7 @@ public class ChatbotService {
     private final ChatSessionRepository sessionRepository;
     private final GeminiStreamingClient geminiStreamingClient;
     private final HealthProfileRepository healthProfileRepository;
-    private final BloodPressureLogRepository bloodPressureLogRepository;
-    private final BloodSugarLogRepository bloodSugarLogRepository;
+    private final RecordReadService recordReadService;
 
     public ChatSessionResponse createSession(Long userId, CreateSessionRequest request) {
         String sessionId = UUID.randomUUID().toString();
@@ -258,10 +255,7 @@ public class ChatbotService {
             }
         }
 
-        List<BloodPressureLog> bloodPressureLogs = bloodPressureLogRepository.findRecentByUserId(
-                userId,
-                PageRequest.of(0, 3)
-        );
+        List<BloodPressureRecord> bloodPressureLogs = recordReadService.getRecentBloodPressureRecords(userId, 3);
         if (!bloodPressureLogs.isEmpty()) {
             List<String> recentBp = bloodPressureLogs.stream()
                     .map(log -> log.getSystolic() + "/" + log.getDiastolic())
@@ -269,10 +263,7 @@ public class ChatbotService {
             sb.append("- 최근 혈압(최신순): ").append(String.join(", ", recentBp)).append("\n");
         }
 
-        List<BloodSugarLog> bloodSugarLogs = bloodSugarLogRepository.findRecentByUserId(
-                userId,
-                PageRequest.of(0, 3)
-        );
+        List<BloodSugarRecord> bloodSugarLogs = recordReadService.getRecentBloodSugarRecords(userId, 3);
         if (!bloodSugarLogs.isEmpty()) {
             List<String> recentSugar = bloodSugarLogs.stream()
                     .map(log -> log.getGlucoseLevel() + " mg/dL")
