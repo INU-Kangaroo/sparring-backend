@@ -104,6 +104,11 @@ cors:
     - "*"
   allow-credentials: false
 
+app:
+  auth:
+    signup:
+      require-email-verification: true
+
 # Server Configuration
 server:
   port: 8080
@@ -131,6 +136,8 @@ gemini:
 ml:
   server:
     url: ${ML_SERVER_URL}
+    recommend-url: ${ML_RECOMMEND_SERVER_URL:${ML_SERVER_URL}}
+    recommend-path: ${ML_RECOMMEND_PATH:/recommend}
 
 # Report Scoring Policy
 report:
