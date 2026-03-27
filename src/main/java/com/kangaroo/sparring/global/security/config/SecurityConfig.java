@@ -72,10 +72,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
-            configuration.setAllowedOrigins(allowedOrigins);
-        } else if (allowedOriginPatterns != null && !allowedOriginPatterns.isEmpty()) {
-            configuration.setAllowedOriginPatterns(allowedOriginPatterns);
+        List<String> normalizedAllowedOrigins = normalizeOrigins(allowedOrigins);
+        List<String> normalizedAllowedOriginPatterns = normalizeOrigins(allowedOriginPatterns);
+
+        if (!normalizedAllowedOrigins.isEmpty()) {
+            configuration.setAllowedOrigins(normalizedAllowedOrigins);
+        } else if (!normalizedAllowedOriginPatterns.isEmpty()) {
+            configuration.setAllowedOriginPatterns(normalizedAllowedOriginPatterns);
         }
         configuration.addAllowedMethod("GET");
         configuration.addAllowedMethod("POST");
@@ -90,5 +93,14 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> normalizeOrigins(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .toList();
     }
 }
