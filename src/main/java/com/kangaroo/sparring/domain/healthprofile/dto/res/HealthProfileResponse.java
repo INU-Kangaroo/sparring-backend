@@ -1,5 +1,7 @@
 package com.kangaroo.sparring.domain.healthprofile.dto.res;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.common.type.ExerciseDuration;
 import com.kangaroo.sparring.domain.survey.type.*;
@@ -11,12 +13,14 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Schema(description = "건강 프로필 응답")
 @Getter
 @AllArgsConstructor
 @Builder
 public class HealthProfileResponse {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Schema(description = "사용자 ID", example = "1")
     private Long userId;
@@ -50,8 +54,8 @@ public class HealthProfileResponse {
     @Schema(description = "복용 중인 약물", example = "메트포르민 500mg")
     private String medications;
 
-    @Schema(description = "알레르기", example = "페니실린")
-    private String allergies;
+    @Schema(description = "알레르기 목록", example = "[\"우유\", \"땅콩\", \"갑각류\"]")
+    private List<String> allergies;
 
     @Schema(description = "건강 목표", example = "혈당 관리")
     private String healthGoal;
@@ -113,7 +117,7 @@ public class HealthProfileResponse {
                 .bloodPressureStatus(entity.getBloodPressureStatus())
                 .hasFamilyHypertension(entity.getHasFamilyHypertension())
                 .medications(entity.getMedications())
-                .allergies(entity.getAllergies())
+                .allergies(parseJsonArray(entity.getAllergies()))
                 .healthGoal(entity.getHealthGoal())
                 .mealFrequency(entity.getMealFrequency())
                 .foodPreference(entity.getFoodPreference())
@@ -130,5 +134,16 @@ public class HealthProfileResponse {
                 .drinkingFrequency(entity.getDrinkingFrequency())
                 .stressLevel(entity.getStressLevel())
                 .build();
+    }
+
+    private static List<String> parseJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }

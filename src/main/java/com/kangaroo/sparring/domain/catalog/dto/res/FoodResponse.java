@@ -1,7 +1,10 @@
 package com.kangaroo.sparring.domain.catalog.dto.res;
 
 import com.kangaroo.sparring.domain.catalog.entity.Food;
+<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/catalog/dto/res/FoodResponse.java
 import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
+=======
+>>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/catalog/dto/res/FoodResponse.java
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,13 +41,12 @@ public class FoodResponse {
     private String manufacturer;
 
     public static FoodResponse from(Food food) {
-        MealNutrition nutrition = food.getMealNutrition();
         return FoodResponse.builder()
                 .id(food.getId())
                 .name(food.getName())
                 .servingSize(food.getServingSize())
                 .servingUnit(food.getServingUnit())
-                .calories(nutrition != null ? nutrition.getCalories() : null)
+                .calories(food.getCalories())
                 .portionLabel(food.getPortionLabel())
                 .portionAmount(food.getPortionAmount())
                 .manufacturer(food.getManufacturer())
