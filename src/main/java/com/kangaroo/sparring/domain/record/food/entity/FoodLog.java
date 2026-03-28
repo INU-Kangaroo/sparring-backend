@@ -2,10 +2,6 @@ package com.kangaroo.sparring.domain.record.food.entity;
 
 import com.kangaroo.sparring.domain.common.BaseEntity;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
-<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/record/food/entity/FoodLog.java
-import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
-=======
->>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/log/entity/FoodLog.java
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.user.entity.User;
 import jakarta.persistence.*;
