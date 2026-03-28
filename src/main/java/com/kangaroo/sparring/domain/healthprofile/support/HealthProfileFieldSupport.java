@@ -155,6 +155,35 @@ public final class HealthProfileFieldSupport {
         }
     }
 
+    public static boolean setJsonStringArray(String rawValue, Consumer<String> setter) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return false;
+        }
+        try {
+            List<String> values;
+            String trimmed = rawValue.trim();
+            if (trimmed.startsWith("[")) {
+                values = OBJECT_MAPPER.readValue(trimmed, new TypeReference<List<String>>() {});
+            } else {
+                values = List.of(trimmed.split(","));
+            }
+
+            List<String> normalized = values.stream()
+                    .map(value -> value == null ? "" : value.trim())
+                    .filter(value -> !value.isBlank())
+                    .distinct()
+                    .toList();
+
+            if (normalized.isEmpty()) {
+                return false;
+            }
+            setter.accept(OBJECT_MAPPER.writeValueAsString(normalized));
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private static LocalDate parseDate(String rawValue) {
         if (rawValue == null || rawValue.isBlank()) {
             return null;

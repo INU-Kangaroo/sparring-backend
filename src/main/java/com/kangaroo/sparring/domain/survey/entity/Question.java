@@ -8,7 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+<<<<<<< Updated upstream
 @Table(name = "questions",
+=======
+@Table(name = "question",
+>>>>>>> Stashed changes
         uniqueConstraints = @UniqueConstraint(columnNames = {"survey_id", "question_key"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

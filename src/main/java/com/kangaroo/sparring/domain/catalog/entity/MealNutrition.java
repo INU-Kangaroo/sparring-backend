@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/catalog/entity/MealNutrition.java
 package com.kangaroo.sparring.domain.catalog.entity;
 
 import com.kangaroo.sparring.domain.common.BaseEntity;
@@ -76,3 +77,7 @@ public class MealNutrition extends BaseEntity {
         this.saturatedFat = saturatedFat;
     }
 }
+=======
+// 삭제됨 — V3 migration에서 meal_nutrition 테이블 제거, food 테이블에 흡수
+// 이 파일은 더 이상 사용되지 않습니다.
+>>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/catalog/entity/MealNutrition.java

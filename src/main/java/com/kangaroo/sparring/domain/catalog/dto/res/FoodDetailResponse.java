@@ -1,7 +1,10 @@
 package com.kangaroo.sparring.domain.catalog.dto.res;
 
 import com.kangaroo.sparring.domain.catalog.entity.Food;
+<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/catalog/dto/res/FoodDetailResponse.java
 import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
+=======
+>>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/catalog/dto/res/FoodDetailResponse.java
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -55,7 +58,7 @@ public class FoodDetailResponse {
     @Schema(description = "포화지방 (g)", example = "1.0")
     private Double saturatedFat;
 
-    public static FoodDetailResponse from(Food food, MealNutrition nutrition) {
+    public static FoodDetailResponse from(Food food) {
         return FoodDetailResponse.builder()
                 .id(food.getId())
                 .name(food.getName())
@@ -63,14 +66,14 @@ public class FoodDetailResponse {
                 .servingUnit(food.getServingUnit())
                 .portionLabel(food.getPortionLabel())
                 .portionAmount(food.getPortionAmount())
-                .calories(nutrition != null ? nutrition.getCalories() : null)
-                .carbs(nutrition != null ? nutrition.getCarbs() : null)
-                .protein(nutrition != null ? nutrition.getProtein() : null)
-                .fat(nutrition != null ? nutrition.getFat() : null)
-                .sodium(nutrition != null ? nutrition.getSodium() : null)
-                .sugar(nutrition != null ? nutrition.getSugar() : null)
-                .cholesterol(nutrition != null ? nutrition.getCholesterol() : null)
-                .saturatedFat(nutrition != null ? nutrition.getSaturatedFat() : null)
+                .calories(food.getCalories())
+                .carbs(food.getCarbs())
+                .protein(food.getProtein())
+                .fat(food.getFat())
+                .sodium(food.getSodium())
+                .sugar(food.getSugar())
+                .cholesterol(food.getCholesterol())
+                .saturatedFat(food.getSaturatedFat())
                 .build();
     }
 }
