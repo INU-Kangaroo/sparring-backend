@@ -24,8 +24,8 @@ public class MealRecommendationAiClient {
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
 
-    @Value("${ml.server.recommend-url}")
-    private String recommendUrl;
+    @Value("${ml.server.url}")
+    private String serverUrl;
 
     @Value("${ml.server.recommend-path:/recommend}")
     private String recommendPath;
@@ -37,7 +37,7 @@ public class MealRecommendationAiClient {
         try {
             String responseBody = webClientBuilder.build()
                     .post()
-                    .uri(recommendUrl + recommendPath)
+                    .uri(serverUrl + recommendPath)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(objectMapper.writeValueAsString(requestBody))
                     .retrieve()
