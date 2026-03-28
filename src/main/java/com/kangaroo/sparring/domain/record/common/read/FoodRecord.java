@@ -8,8 +8,6 @@ import java.time.LocalDateTime;
 public class FoodRecord implements TemporalRecord {
     private final LocalDateTime eatenAt;
     private final Double calories;
-<<<<<<< Updated upstream
-=======
     private final String foodName;
     private final Double carbs;
     private final Double protein;
@@ -17,13 +15,10 @@ public class FoodRecord implements TemporalRecord {
     private final Double sodium;
     private final Double sugar;
     private final Double fiber;
->>>>>>> Stashed changes
 
     public FoodRecord(LocalDateTime eatenAt, Double calories) {
         this.eatenAt = eatenAt;
         this.calories = calories;
-<<<<<<< Updated upstream
-=======
         this.foodName = null;
         this.carbs = null;
         this.protein = null;
@@ -45,7 +40,6 @@ public class FoodRecord implements TemporalRecord {
         this.sodium = sodium;
         this.sugar = sugar;
         this.fiber = fiber;
->>>>>>> Stashed changes
     }
 
     @Override

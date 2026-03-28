@@ -2,10 +2,6 @@ package com.kangaroo.sparring.domain.prediction.service;
 
 import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
-<<<<<<< Updated upstream
-import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
-=======
->>>>>>> Stashed changes
 import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;

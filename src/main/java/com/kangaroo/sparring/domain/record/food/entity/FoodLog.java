@@ -2,10 +2,6 @@ package com.kangaroo.sparring.domain.record.food.entity;
 
 import com.kangaroo.sparring.domain.common.BaseEntity;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
-<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/record/food/entity/FoodLog.java
-import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
-=======
->>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/log/entity/FoodLog.java
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -62,6 +58,9 @@ public class FoodLog extends BaseEntity {
     @Column(name = "sodium")
     private Double sodium;
 
+    @Column(name = "sugar")
+    private Double sugar;
+
     @Column(name = "fiber")
     private Double fiber;
 
@@ -81,6 +80,7 @@ public class FoodLog extends BaseEntity {
                 .protein(scaleNutrition(food.getProtein(), ratio))
                 .fat(scaleNutrition(food.getFat(), ratio))
                 .sodium(scaleNutrition(food.getSodium(), ratio))
+                .sugar(scaleNutrition(food.getSugar(), ratio))
                 .fiber(scaleNutrition(food.getFiber(), ratio))
                 .build();
     }
