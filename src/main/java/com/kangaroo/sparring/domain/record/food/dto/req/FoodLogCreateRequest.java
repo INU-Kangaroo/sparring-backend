@@ -20,7 +20,11 @@ public class FoodLogCreateRequest {
     @NotNull(message = "음식 ID는 필수입니다")
     private Long foodId;
 
-    @Schema(description = "식사 구분", example = "BREAKFAST", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(
+            description = "식사 구분 (BREAKFAST/LUNCH/DINNER/SNACK 또는 아침/점심/저녁/간식)",
+            example = "아침",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotNull(message = "식사 구분은 필수입니다")
     private MealTime mealTime;
 

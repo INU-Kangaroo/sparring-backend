@@ -2,7 +2,10 @@ package com.kangaroo.sparring.domain.record.food.entity;
 
 import com.kangaroo.sparring.domain.common.BaseEntity;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
+<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/record/food/entity/FoodLog.java
 import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
+=======
+>>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/log/entity/FoodLog.java
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -11,7 +14,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "meal_log")
+@Table(name = "food_log")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -59,8 +62,10 @@ public class FoodLog extends BaseEntity {
     @Column(name = "sodium")
     private Double sodium;
 
+    @Column(name = "fiber")
+    private Double fiber;
+
     public static FoodLog withFood(User user, Food food, MealTime mealTime, LocalDateTime eatenAt, Double eatenAmountGram) {
-        MealNutrition nutrition = food.getMealNutrition();
         double baseServingSize = resolveBaseServingSize(food.getServingSize());
         double ratio = eatenAmountGram / baseServingSize;
 
@@ -71,11 +76,12 @@ public class FoodLog extends BaseEntity {
                 .mealTime(mealTime)
                 .eatenAt(eatenAt)
                 .eatenAmountGram(eatenAmountGram)
-                .calories(scaleNutrition(nutrition != null ? nutrition.getCalories() : null, ratio))
-                .carbs(scaleNutrition(nutrition != null ? nutrition.getCarbs() : null, ratio))
-                .protein(scaleNutrition(nutrition != null ? nutrition.getProtein() : null, ratio))
-                .fat(scaleNutrition(nutrition != null ? nutrition.getFat() : null, ratio))
-                .sodium(scaleNutrition(nutrition != null ? nutrition.getSodium() : null, ratio))
+                .calories(scaleNutrition(food.getCalories(), ratio))
+                .carbs(scaleNutrition(food.getCarbs(), ratio))
+                .protein(scaleNutrition(food.getProtein(), ratio))
+                .fat(scaleNutrition(food.getFat(), ratio))
+                .sodium(scaleNutrition(food.getSodium(), ratio))
+                .fiber(scaleNutrition(food.getFiber(), ratio))
                 .build();
     }
 
