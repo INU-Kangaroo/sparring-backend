@@ -3,13 +3,7 @@ package com.kangaroo.sparring.domain.catalog.service;
 import com.kangaroo.sparring.domain.catalog.dto.res.FoodDetailResponse;
 import com.kangaroo.sparring.domain.catalog.dto.res.FoodResponse;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
-<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/catalog/service/FoodService.java
-import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
 import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
-import com.kangaroo.sparring.domain.catalog.repository.MealNutritionRepository;
-=======
-import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
->>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/catalog/service/FoodService.java
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
