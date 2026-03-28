@@ -1,5 +1,7 @@
 package com.kangaroo.sparring.domain.healthprofile.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.healthprofile.dto.req.UpdateHealthProfileRequest;
 import com.kangaroo.sparring.domain.healthprofile.dto.res.HealthProfileResponse;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class HealthProfileService {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final HealthProfileRepository healthProfileRepository;
     private final UserRepository userRepository;
@@ -46,7 +49,7 @@ public class HealthProfileService {
                 request.getBloodPressureStatus(),
                 request.getHasFamilyHypertension(),
                 request.getMedications(),
-                request.getAllergies(),
+                toJsonArray(request.getAllergies()),
                 request.getHealthGoal()
         );
 
@@ -65,5 +68,19 @@ public class HealthProfileService {
                             .build();
                     return healthProfileRepository.save(healthProfile);
                 });
+    }
+
+    private String toJsonArray(java.util.List<String> values) {
+        if (values == null) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(values.stream()
+                    .filter(v -> v != null && !v.isBlank())
+                    .map(String::trim)
+                    .toList());
+        } catch (JsonProcessingException e) {
+            return "[]";
+        }
     }
 }
