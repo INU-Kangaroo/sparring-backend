@@ -1,6 +1,6 @@
 -- Initial schema for production (Flyway)
 
-CREATE TABLE `users` (
+CREATE TABLE `user` (
   `birth_date` date DEFAULT NULL,
   `is_active` bit(1) NOT NULL,
   `is_deleted` bit(1) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE `users` (
   UNIQUE KEY `UK6dotkott2kjsp8vw4d0m25fb7` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `surveys` (
+CREATE TABLE `survey` (
   `is_deleted` bit(1) NOT NULL,
   `created_at` datetime(6) NOT NULL,
   `deleted_at` datetime(6) DEFAULT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE `exercise` (
   KEY `idx_exercise_location` (`location`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `recommendation` (
+CREATE TABLE `recommendation_session` (
   `is_deleted` bit(1) NOT NULL,
   `created_at` datetime(6) NOT NULL,
   `deleted_at` datetime(6) DEFAULT NULL,
@@ -79,10 +79,10 @@ CREATE TABLE `recommendation` (
   `type` enum('EXERCISE','MEAL','SUPPLEMENT') COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`recommendation_id`),
   KEY `FKrwu8ddeus85k2p40wlvojuw1v` (`user_id`),
-  CONSTRAINT `FKrwu8ddeus85k2p40wlvojuw1v` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FKrwu8ddeus85k2p40wlvojuw1v` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `questions` (
+CREATE TABLE `question` (
   `is_deleted` bit(1) NOT NULL,
   `is_required` bit(1) NOT NULL,
   `question_order` int NOT NULL,
@@ -99,10 +99,10 @@ CREATE TABLE `questions` (
   `question_type` enum('MULTIPLE_CHOICE','NUMBER','SINGLE_CHOICE','TEXT') COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK71hl2hwwce3p09skojucrddhf` (`survey_id`,`question_key`,`question_stage`),
-  CONSTRAINT `FKnf38uiy78c0g0tmo68btk3y0p` FOREIGN KEY (`survey_id`) REFERENCES `surveys` (`id`)
+  CONSTRAINT `FKnf38uiy78c0g0tmo68btk3y0p` FOREIGN KEY (`survey_id`) REFERENCES `survey` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `answers` (
+CREATE TABLE `answer` (
   `is_deleted` bit(1) NOT NULL,
   `created_at` datetime(6) NOT NULL,
   `deleted_at` datetime(6) DEFAULT NULL,
@@ -115,7 +115,7 @@ CREATE TABLE `answers` (
   UNIQUE KEY `UKnuhasayngavi95ujpmx6bk8np` (`user_id`,`question_id`),
   KEY `FK3erw1a3t0r78st8ty27x6v3g1` (`question_id`),
   CONSTRAINT `FK3erw1a3t0r78st8ty27x6v3g1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`),
-  CONSTRAINT `FK5bp3d5loftq2vjn683ephn75a` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FK5bp3d5loftq2vjn683ephn75a` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `health_profile` (
@@ -134,7 +134,7 @@ CREATE TABLE `health_profile` (
   `updated_at` datetime(6) NOT NULL,
   `user_id` bigint NOT NULL,
   `health_goal` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `allergies` text COLLATE utf8mb4_unicode_ci,
+  `allergies` json DEFAULT NULL,
   `exercise_place` json DEFAULT NULL,
   `exercise_type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `food_preference` json DEFAULT NULL,
@@ -150,7 +150,7 @@ CREATE TABLE `health_profile` (
   `stress_level` enum('HIGH','LOW','MEDIUM') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sugar_intake_freq` enum('DAILY','FIVE_TO_SIX_PER_WEEK','NONE','ONE_TO_TWO_PER_WEEK','THREE_TO_FOUR_PER_WEEK') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`user_id`),
-  CONSTRAINT `FKi5cnr23siyeibdnnk66t1cqmq` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FKi5cnr23siyeibdnnk66t1cqmq` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `blood_pressure_log` (
@@ -167,7 +167,7 @@ CREATE TABLE `blood_pressure_log` (
   `measurement_label` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `FKfmhobu8f48s71vtcylymbf9q6` (`user_id`),
-  CONSTRAINT `FKfmhobu8f48s71vtcylymbf9q6` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FKfmhobu8f48s71vtcylymbf9q6` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `blood_pressure_prediction` (
@@ -183,7 +183,7 @@ CREATE TABLE `blood_pressure_prediction` (
   `user_id` bigint NOT NULL,
   PRIMARY KEY (`id`),
   KEY `FKqc38n071juxkjbjksr8kwxs80` (`user_id`),
-  CONSTRAINT `FKqc38n071juxkjbjksr8kwxs80` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FKqc38n071juxkjbjksr8kwxs80` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `blood_sugar_log` (
@@ -198,7 +198,7 @@ CREATE TABLE `blood_sugar_log` (
   `measurement_label` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `FK1jf4hxcoq8qhfr16ickv9jxvl` (`user_id`),
-  CONSTRAINT `FK1jf4hxcoq8qhfr16ickv9jxvl` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FK1jf4hxcoq8qhfr16ickv9jxvl` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `blood_sugar_prediction` (
@@ -216,7 +216,7 @@ CREATE TABLE `blood_sugar_prediction` (
   `trend_label` enum('DECREASING','INCREASING','STABLE') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `FKbc5m4lhsdmosampur7v84hyla` (`user_id`),
-  CONSTRAINT `FKbc5m4lhsdmosampur7v84hyla` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FKbc5m4lhsdmosampur7v84hyla` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `exercise_log` (
@@ -234,7 +234,7 @@ CREATE TABLE `exercise_log` (
   `matched_exercise_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_exercise_log_user_logged_at` (`user_id`,`logged_at`),
-  CONSTRAINT `FK6uf3o8nhuo5qsvqkunt29ahda` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FK6uf3o8nhuo5qsvqkunt29ahda` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `exercise_recommendation` (
@@ -253,10 +253,10 @@ CREATE TABLE `exercise_recommendation` (
   `exercise_type` enum('CARDIAC','STRENGTH') COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `FKtrmtbasl8cihoqtprka327cef` (`recommendation_id`),
-  CONSTRAINT `FKtrmtbasl8cihoqtprka327cef` FOREIGN KEY (`recommendation_id`) REFERENCES `recommendation` (`recommendation_id`)
+  CONSTRAINT `FKtrmtbasl8cihoqtprka327cef` FOREIGN KEY (`recommendation_id`) REFERENCES `recommendation_session` (`recommendation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `meal_log` (
+CREATE TABLE `food_log` (
   `calories` double DEFAULT NULL,
   `carbs` double DEFAULT NULL,
   `eaten_amount_gram` double DEFAULT NULL,
@@ -277,7 +277,7 @@ CREATE TABLE `meal_log` (
   KEY `FKkqw85oloaff75i93ylgev7u8q` (`food_id`),
   KEY `FKn5c1ptqo5uimm82ukrmlaerk9` (`user_id`),
   CONSTRAINT `FKkqw85oloaff75i93ylgev7u8q` FOREIGN KEY (`food_id`) REFERENCES `food` (`id`),
-  CONSTRAINT `FKn5c1ptqo5uimm82ukrmlaerk9` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FKn5c1ptqo5uimm82ukrmlaerk9` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `meal_nutrition` (
@@ -322,7 +322,7 @@ CREATE TABLE `report` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_report_user_start_deleted` (`user_id`,`start_date`,`is_deleted`),
   KEY `idx_report_user_start` (`user_id`,`start_date`),
-  CONSTRAINT `FKq50wsn94sc3mi90gtidk0k34a` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  CONSTRAINT `FKq50wsn94sc3mi90gtidk0k34a` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `supplement_recommendation` (
@@ -339,5 +339,5 @@ CREATE TABLE `supplement_recommendation` (
   `precautions` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   KEY `FKriecnugxroak7ceho7dwv3q7p` (`recommendation_id`),
-  CONSTRAINT `FKriecnugxroak7ceho7dwv3q7p` FOREIGN KEY (`recommendation_id`) REFERENCES `recommendation` (`recommendation_id`)
+  CONSTRAINT `FKriecnugxroak7ceho7dwv3q7p` FOREIGN KEY (`recommendation_id`) REFERENCES `recommendation_session` (`recommendation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

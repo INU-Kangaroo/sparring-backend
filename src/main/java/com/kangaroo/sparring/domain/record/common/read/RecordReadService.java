@@ -38,10 +38,39 @@ public class RecordReadService {
 
     public List<FoodRecord> getFoodRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return foodLogRepository.findByUserIdAndEatenAtBetweenAndIsDeletedFalseOrderByEatenAtAsc(userId, start, end).stream()
+<<<<<<< Updated upstream
                 .map(log -> new FoodRecord(log.getEatenAt(), log.getCalories()))
                 .toList();
     }
 
+=======
+                .map(log -> new FoodRecord(
+                        log.getEatenAt(),
+                        log.getFoodName(),
+                        log.getCalories(),
+                        log.getCarbs(),
+                        log.getProtein(),
+                        log.getFat(),
+                        log.getSodium(),
+                        null,          // sugar (food_log에 없음)
+                        log.getFiber()
+                ))
+                .toList();
+    }
+
+    public List<FoodRecord> getTodayFoodRecords(Long userId, LocalDate today) {
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.atTime(LocalTime.MAX);
+        return getFoodRecords(userId, start, end);
+    }
+
+    public List<FoodRecord> getRecentFoodRecords(Long userId, LocalDate from, LocalDate to) {
+        LocalDateTime start = from.atStartOfDay();
+        LocalDateTime end = to.atTime(LocalTime.MAX);
+        return getFoodRecords(userId, start, end);
+    }
+
+>>>>>>> Stashed changes
     public List<ExerciseRecord> getExerciseRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return exerciseLogRepository.findByUserIdAndLoggedAtBetweenAndIsDeletedFalseOrderByLoggedAtDesc(userId, start, end).stream()
                 .map(log -> new ExerciseRecord(log.getLoggedAt(), log.getMetValue()))

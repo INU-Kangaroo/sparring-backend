@@ -3,9 +3,13 @@ package com.kangaroo.sparring.domain.catalog.service;
 import com.kangaroo.sparring.domain.catalog.dto.res.FoodDetailResponse;
 import com.kangaroo.sparring.domain.catalog.dto.res.FoodResponse;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
+<<<<<<< Updated upstream:src/main/java/com/kangaroo/sparring/domain/catalog/service/FoodService.java
 import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
 import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
 import com.kangaroo.sparring.domain.catalog.repository.MealNutritionRepository;
+=======
+import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
+>>>>>>> Stashed changes:src/main/java/com/kangaroo/sparring/domain/food/catalog/service/FoodService.java
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +58,6 @@ public class FoodService {
     );
 
     private final FoodRepository foodRepository;
-    private final MealNutritionRepository mealNutritionRepository;
 
     /**
      * 음식 검색
@@ -115,9 +118,7 @@ public class FoodService {
         Food food = foodRepository.findByIdWithNutrition(foodId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FOOD_NOT_FOUND));
 
-        MealNutrition nutrition = food.getMealNutrition();
-
-        return FoodDetailResponse.from(food, nutrition);
+        return FoodDetailResponse.from(food);
     }
 
     /**
@@ -140,14 +141,10 @@ public class FoodService {
 
         // 음식 생성
         Food food = Food.create(normalizedName, servingSize, normalizedServingUnit);
-        Food savedFood = foodRepository.save(food);
+        foodRepository.save(food);
 
-        // 영양 정보 생성
-        MealNutrition nutrition = MealNutrition.create(savedFood, calories, carbs, protein, fat);
-        mealNutritionRepository.save(nutrition);
-
-        log.info("음식 생성 완료: foodId={}", savedFood.getId());
-        return savedFood.getId();
+        log.info("음식 생성 완료: foodId={}", food.getId());
+        return food.getId();
     }
 
     /**

@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Schema(description = "건강 프로필 업데이트 요청")
 @Getter
@@ -52,9 +53,9 @@ public class UpdateHealthProfileRequest {
     @Size(max = 500, message = "복용 약물은 500자 이하로 입력해주세요")
     private String medications;
 
-    @Schema(description = "알레르기", example = "페니실린")
-    @Size(max = 500, message = "알레르기는 500자 이하로 입력해주세요")
-    private String allergies;
+    @Schema(description = "알레르기 목록 (한글/영문/자유 텍스트 가능)", example = "[\"우유\", \"땅콩\", \"갑각류\"]")
+    @Size(max = 20, message = "알레르기 항목은 최대 20개까지 입력 가능합니다")
+    private List<String> allergies;
 
     @Schema(description = "건강 목표", example = "혈당 관리")
     @Size(max = 100, message = "건강 목표는 100자 이하로 입력해주세요")

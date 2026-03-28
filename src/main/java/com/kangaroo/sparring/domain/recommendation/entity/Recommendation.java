@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "recommendation")
+@Table(name = "recommendation_session")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Recommendation extends BaseEntity {
