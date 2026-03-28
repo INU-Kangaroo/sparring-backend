@@ -46,7 +46,7 @@ public class RecordReadService {
                         log.getProtein(),
                         log.getFat(),
                         log.getSodium(),
-                        null,
+                        log.getSugar(),
                         log.getFiber()
                 ))
                 .toList();
