@@ -58,6 +58,9 @@ public class FoodLog extends BaseEntity {
     @Column(name = "sodium")
     private Double sodium;
 
+    @Column(name = "sugar")
+    private Double sugar;
+
     @Column(name = "fiber")
     private Double fiber;
 
@@ -77,6 +80,7 @@ public class FoodLog extends BaseEntity {
                 .protein(scaleNutrition(food.getProtein(), ratio))
                 .fat(scaleNutrition(food.getFat(), ratio))
                 .sodium(scaleNutrition(food.getSodium(), ratio))
+                .sugar(scaleNutrition(food.getSugar(), ratio))
                 .fiber(scaleNutrition(food.getFiber(), ratio))
                 .build();
     }
