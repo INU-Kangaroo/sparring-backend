@@ -2,7 +2,10 @@ package com.kangaroo.sparring.domain.prediction.service;
 
 import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
+<<<<<<< Updated upstream
 import com.kangaroo.sparring.domain.catalog.entity.MealNutrition;
+=======
+>>>>>>> Stashed changes
 import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
@@ -45,8 +48,7 @@ public class GlucosePredictionService {
         Food food = foodRepository.findByIdWithNutrition(foodId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FOOD_NOT_FOUND));
 
-        MealNutrition nutrition = food.getMealNutrition();
-        double carbIntake = (nutrition != null) ? nutrition.getCarbs() : 0.0;
+        double carbIntake = food.getCarbs() != null ? food.getCarbs() : 0.0;
 
         // 건강 프로필 조회
         HealthProfile profile = healthProfileRepository.findByUserId(user.getId())

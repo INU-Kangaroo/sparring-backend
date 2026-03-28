@@ -20,18 +20,23 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
     Optional<Food> findActiveByNormalizedName(@Param("name") String name);
 
     /**
-     * ID로 조회 (영양 정보 포함)
+     * ID로 조회
      */
-    @Query("SELECT f FROM Food f LEFT JOIN FETCH f.mealNutrition WHERE f.id = :id AND f.isDeleted = false")
+    @Query("SELECT f FROM Food f WHERE f.id = :id AND f.isDeleted = false")
     Optional<Food> findByIdWithNutrition(@Param("id") Long id);
 
     /**
-     * 삭제되지 않은 음식만 조회
+     * food_code로 ID 조회
+     */
+    @Query("SELECT f.id FROM Food f WHERE f.foodCode = :foodCode AND f.isDeleted = false")
+    Optional<Long> findIdByFoodCode(@Param("foodCode") String foodCode);
+
+    /**
+     * 정확한 이름으로 조회
      */
     @Query("""
             SELECT f
             FROM Food f
-            LEFT JOIN FETCH f.mealNutrition
             WHERE f.isDeleted = false
               AND LOWER(TRIM(f.name)) = LOWER(TRIM(:keyword))
             ORDER BY f.name ASC
@@ -41,7 +46,6 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
     @Query("""
             SELECT f
             FROM Food f
-            LEFT JOIN FETCH f.mealNutrition
             WHERE f.isDeleted = false
               AND LOWER(f.name) LIKE LOWER(CONCAT(:keyword, '%'))
             ORDER BY f.name ASC
@@ -51,7 +55,6 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
     @Query("""
             SELECT f
             FROM Food f
-            LEFT JOIN FETCH f.mealNutrition
             WHERE f.isDeleted = false
               AND LOWER(f.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
             ORDER BY f.name ASC

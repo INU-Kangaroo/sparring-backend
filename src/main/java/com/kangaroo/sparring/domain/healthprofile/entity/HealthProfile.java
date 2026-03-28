@@ -62,7 +62,7 @@ public class HealthProfile extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String medications;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "allergies", columnDefinition = "JSON")
     private String allergies;
 
     @Column(name = "health_goal", length = 100)
@@ -168,7 +168,7 @@ public class HealthProfile extends BaseEntity {
             case "bloodPressureStatus" -> applied = HealthProfileFieldSupport.setEnum(BloodPressureStatus.class, rawValue, value -> this.bloodPressureStatus = value);
             case "hasFamilyHypertension" -> applied = HealthProfileFieldSupport.setBoolean(rawValue, value -> this.hasFamilyHypertension = value);
             case "medications" -> this.medications = rawValue;
-            case "allergies" -> this.allergies = rawValue;
+            case "allergies" -> applied = HealthProfileFieldSupport.setJsonStringArray(rawValue, value -> this.allergies = value);
             case "healthGoal" -> this.healthGoal = rawValue;
             case "mealFrequency" -> applied = HealthProfileFieldSupport.setEnum(MealFrequency.class, rawValue, value -> this.mealFrequency = value);
             case "foodPreference" -> applied = HealthProfileFieldSupport.setJsonCodeArray(FoodPreference.class, rawValue, value -> this.foodPreference = value);
