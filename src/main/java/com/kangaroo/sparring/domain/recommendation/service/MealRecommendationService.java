@@ -121,6 +121,8 @@ public class MealRecommendationService {
         body.put("eaten_carb_g", sumNutrition(todayLogs, "carbs"));
         body.put("eaten_protein_g", sumNutrition(todayLogs, "protein"));
         body.put("eaten_fat_g", sumNutrition(todayLogs, "fat"));
+        body.put("eaten_sugar_g", sumNutrition(todayLogs, "sugar"));
+        body.put("eaten_fiber_g", sumNutrition(todayLogs, "fiber"));
         body.put("eaten_sodium_mg", sumNutrition(todayLogs, "sodium"));
 
         // 최근 7일 히스토리
@@ -207,6 +209,8 @@ public class MealRecommendationService {
                         case "carbs"    -> log.getCarbs();
                         case "protein"  -> log.getProtein();
                         case "fat"      -> log.getFat();
+                        case "sugar"    -> log.getSugar();
+                        case "fiber"    -> log.getFiber();
                         case "sodium"   -> log.getSodium();
                         default         -> null;
                     };
