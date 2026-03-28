@@ -51,5 +51,10 @@ CLAUDE.md
 .venv-data/
 HELP.md
 
+# Data scripts (local only)
+scripts/load_food.py
+scripts/load_recommend_food.py
+scripts/knhanes_cluster.py
+
 # Local-only compose file (prod compose is tracked)
 docker-compose-dev.yml
