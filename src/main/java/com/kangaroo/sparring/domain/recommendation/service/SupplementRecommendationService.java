@@ -40,15 +40,14 @@ public class SupplementRecommendationService {
     private final RecommendationPromptTemplateService promptTemplateService;
     private final RecommendationContextService recommendationContextService;
     private final RecommendationJsonMappingSupport jsonMappingSupport;
-    private final RecommendationParsingSupport parsingSupport;
 
     public SupplementRecommendationResponse getSupplementRecommendations(Long userId) {
         User user = recommendationContextService.getUser(userId);
         LocalDateTime cacheThreshold = LocalDateTime.now().minusHours(CACHE_HOURS);
 
         return recommendationRepository
-                .findTopByUserAndTypeAndIsDeletedFalseAndCreatedAtAfterOrderByCreatedAtDesc(
-                        user,
+                .findCachedRecommendation(
+                        user.getId(),
                         RecommendationType.SUPPLEMENT,
                         cacheThreshold
                 )
@@ -93,7 +92,7 @@ public class SupplementRecommendationService {
 
     private SupplementRecommendationResponse parseSupplementResponse(String geminiResponse) {
         try {
-            JsonNode root = parsingSupport.readTreeOrThrow(
+            JsonNode root = jsonMappingSupport.readTreeOrThrow(
                     RecommendationJsonSupport.extractJsonObject(geminiResponse),
                     geminiResponse,
                     "Gemini 영양제 추천 응답"
@@ -195,7 +194,7 @@ public class SupplementRecommendationService {
         }
         try {
             JsonNode node = objectMapper.readTree(trimmed);
-            return RecommendationArraySupport.readStringArray(node);
+            return RecommendationJsonSupport.readStringArray(node);
         } catch (Exception e) {
             log.warn("효능 문자열 역직렬화 실패: value={}", raw);
             return List.of(trimmed);
@@ -203,7 +202,7 @@ public class SupplementRecommendationService {
     }
 
     private List<String> readStringListFlexible(JsonNode node) {
-        List<String> values = RecommendationArraySupport.readStringArray(node);
+        List<String> values = RecommendationJsonSupport.readStringArray(node);
         if (!values.isEmpty()) {
             return values;
         }

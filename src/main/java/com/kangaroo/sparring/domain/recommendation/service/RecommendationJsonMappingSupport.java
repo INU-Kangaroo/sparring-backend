@@ -18,8 +18,17 @@ public class RecommendationJsonMappingSupport {
 
     private final ObjectMapper objectMapper;
 
+    public JsonNode readTreeOrThrow(String json, String rawResponse, String context) {
+        try {
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            log.error("{} 파싱 실패: body={}", context, RecommendationJsonSupport.abbreviate(rawResponse), e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public List<String> readPrecautions(JsonNode node) {
-        List<String> precautions = RecommendationArraySupport.readStringArray(node.path("precautions"));
+        List<String> precautions = RecommendationJsonSupport.readStringArray(node.path("precautions"));
         if (!precautions.isEmpty()) {
             return precautions;
         }
@@ -48,7 +57,7 @@ public class RecommendationJsonMappingSupport {
         }
         try {
             JsonNode node = objectMapper.readTree(trimmed);
-            return RecommendationArraySupport.readStringArray(node);
+            return RecommendationJsonSupport.readStringArray(node);
         } catch (Exception e) {
             log.warn("문자열 배열 역직렬화 실패: value={}", raw);
             return List.of();
