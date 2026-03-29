@@ -20,5 +20,5 @@ public class MealRecommendationRequest {
 
     @Min(1) @Max(50)
     @Schema(description = "추천 개수 (1~50, 기본 10)", example = "10")
-    private Integer topN = 10;
+    private int topN = 10;
 }

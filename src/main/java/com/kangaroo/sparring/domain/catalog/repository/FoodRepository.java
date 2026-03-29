@@ -31,6 +31,9 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
     @Query("SELECT f.id FROM Food f WHERE f.foodCode = :foodCode AND f.isDeleted = false")
     Optional<Long> findIdByFoodCode(@Param("foodCode") String foodCode);
 
+    @Query("SELECT f FROM Food f WHERE f.foodCode IN :foodCodes AND f.isDeleted = false")
+    List<Food> findActiveByFoodCodeIn(@Param("foodCodes") List<String> foodCodes);
+
     /**
      * 정확한 이름으로 조회
      */

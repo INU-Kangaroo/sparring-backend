@@ -19,9 +19,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Period;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -38,6 +40,7 @@ public class GlucosePredictionService {
     private final FoodRepository foodRepository;
     private final HealthProfileRepository healthProfileRepository;
     private final MlServerClient mlServerClient;
+    private final Clock kstClock;
 
     public GlucosePredictionResponse predictGlucose(User user, Long foodId) {
         // 음식 + 영양정보 조회
@@ -63,7 +66,7 @@ public class GlucosePredictionService {
                 .toList();
 
         // ML 요청 필드 조립
-        int mealType = resolveMealType(LocalTime.now());
+        int mealType = resolveMealType(LocalTime.now(kstClock));
         double age = resolveAge(profile);
         int sex = resolveSex(profile.getGender());
         double weight = (profile.getWeight() != null) ? profile.getWeight().doubleValue() : 60.0;
@@ -105,7 +108,7 @@ public class GlucosePredictionService {
 
     private double resolveAge(HealthProfile profile) {
         if (profile.getBirthDate() == null) return 30.0;
-        return LocalDate.now().getYear() - profile.getBirthDate().getYear();
+        return Math.max(0, Period.between(profile.getBirthDate(), LocalDate.now(kstClock)).getYears());
     }
 
     // FEMALE=0, MALE=1
@@ -121,7 +124,7 @@ public class GlucosePredictionService {
 
     // 오늘 운동 기록에서 intensity 계산 (metValue 기준, 없으면 0)
     private double resolveTodayIntensity(Long userId) {
-        List<ExerciseRecord> todayLogs = recordReadService.getTodayExerciseRecords(userId, LocalDate.now());
+        List<ExerciseRecord> todayLogs = recordReadService.getTodayExerciseRecords(userId, LocalDate.now(kstClock));
 
         return todayLogs.stream()
                 .mapToDouble(ExerciseRecord::getMetValue)

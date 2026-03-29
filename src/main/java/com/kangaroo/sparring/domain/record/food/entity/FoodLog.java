@@ -16,7 +16,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class FoodLog extends BaseEntity {
-    private static final double DEFAULT_SERVING_SIZE_GRAM = 100d;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -65,8 +64,7 @@ public class FoodLog extends BaseEntity {
     private Double fiber;
 
     public static FoodLog withFood(User user, Food food, MealTime mealTime, LocalDateTime eatenAt, Double eatenAmountGram) {
-        double baseServingSize = resolveBaseServingSize(food.getServingSize());
-        double ratio = eatenAmountGram / baseServingSize;
+        double ratio = eatenAmountGram / 100.0;
 
         return FoodLog.builder()
                 .user(user)
@@ -98,10 +96,5 @@ public class FoodLog extends BaseEntity {
     private static Double scaleNutrition(Double value, double ratio) {
         if (value == null) return null;
         return value * ratio;
-    }
-
-    private static double resolveBaseServingSize(Double servingSize) {
-        if (servingSize == null || servingSize <= 0d) return DEFAULT_SERVING_SIZE_GRAM;
-        return servingSize;
     }
 }

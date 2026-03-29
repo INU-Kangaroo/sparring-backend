@@ -4,6 +4,7 @@
 - 카테고리: {category}
 - 항목: {timeLabel}
 - 상세: {detail}
+- 수치 근거: {factsSummary}
 
 작성 규칙:
 - 개선 방법 정확히 3가지만 작성
