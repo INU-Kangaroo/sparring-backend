@@ -85,7 +85,7 @@ public class MealRecommendationAiClient {
             List<String> foodCodes = new ArrayList<>();
             recsNode.forEach(item -> {
                 String fc = item.path("food_code").asText(null);
-                if (fc != null && !fc.isBlank()) foodCodes.add(fc);
+                foodCodes.add((fc == null || fc.isBlank()) ? null : fc);
             });
 
             // fallback_level

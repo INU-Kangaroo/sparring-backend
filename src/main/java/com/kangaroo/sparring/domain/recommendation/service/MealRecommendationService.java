@@ -23,8 +23,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,46 +49,30 @@ public class MealRecommendationService {
     private final RecommendationFoodRepository recommendationFoodRepository;
     private final MealRecommendationAiClient aiClient;
     private final FoodRepository foodRepository;
+    private final Clock kstClock;
 
     @Transactional
     public MealRecommendationResponse recommend(User user, HealthProfile profile, MealTime mealTime, int topN) {
-
-        // 1. 오늘 식사 기록 조회
-        LocalDate today = LocalDate.now();
+        LocalDate today = currentDate();
         List<FoodRecord> todayFoodLogs = recordReadService.getTodayFoodRecords(user.getId(), today);
 
-        // 2. 최근 혈당/혈압 조회
         List<BloodSugarRecord> recentBs = recordReadService.getRecentBloodSugarRecords(user.getId(), RECENT_BLOOD_SUGAR_COUNT);
         List<BloodPressureRecord> recentBp = recordReadService.getRecentBloodPressureRecords(user.getId(), RECENT_BLOOD_PRESSURE_COUNT);
 
-        // 3. 최근 7일 식사 히스토리 (오늘 제외)
         List<FoodRecord> historyLogs = recordReadService.getRecentFoodRecords(
                 user.getId(), today.minusDays(HISTORY_DAYS), today.minusDays(1)
         );
 
-        // 4. 개인 피드백 가중치 조회
         List<UserFoodFeedback> feedbacks = userFoodFeedbackRepository.findByUser_IdAndIsDeletedFalse(user.getId());
 
-        // 5. AI 서버 요청 바디 조립
         Map<String, Object> requestBody = buildRequestBody(
                 user, profile, mealTime, topN,
                 todayFoodLogs, recentBs, recentBp, historyLogs, feedbacks
         );
 
-        // 6. AI 서버 호출
         MealRecommendationAiClient.AiRecommendResult result = aiClient.recommend(requestBody);
-
-        // 7. food_code → food.id 매핑
         List<MealRecommendationResponse.RecommendedFoodDto> recommendations = enrichWithFoodId(result);
-
-        // 8. 추천 로그 저장
-        saveLog(user, mealTime, result);
-
-        // 9. 응답 반환
-        return MealRecommendationResponse.builder()
-                .mealTime(mealTime.name())
-                .recommendations(recommendations)
-                .build();
+        return buildAndPersistResponse(user, mealTime, result, recommendations);
     }
 
     private Map<String, Object> buildRequestBody(
@@ -137,19 +123,7 @@ public class MealRecommendationService {
         feedbacks.forEach(f -> feedbackMap.put(f.getFoodCode(), f.getFeedbackWeight()));
         body.put("feedback_weights", feedbackMap);
 
-        // 알레르기 (JSON 배열 문자열 -> 리스트)
-        List<String> allergies = new ArrayList<>();
-        if (profile.getAllergies() != null && !profile.getAllergies().isBlank()) {
-            try {
-                allergies = OBJECT_MAPPER.readValue(
-                        profile.getAllergies(),
-                        new TypeReference<List<String>>() {}
-                );
-            } catch (Exception ignored) {
-                allergies = List.of();
-            }
-        }
-        body.put("allergies", allergies);
+        body.put("allergies", parseAllergies(profile.getAllergies()));
 
         // 식품 선호 카테고리 (JSON 배열 문자열 → 리스트)
         body.put("food_preference", profile.getFoodPreference());
@@ -157,44 +131,80 @@ public class MealRecommendationService {
         return body;
     }
 
+    private MealRecommendationResponse buildAndPersistResponse(
+            User user,
+            MealTime mealTime,
+            MealRecommendationAiClient.AiRecommendResult result,
+            List<MealRecommendationResponse.RecommendedFoodDto> recommendations
+    ) {
+        saveLog(user, mealTime, result);
+        return MealRecommendationResponse.builder()
+                .mealTime(mealTime.name())
+                .recommendations(recommendations)
+                .build();
+    }
+
+    private List<String> parseAllergies(String allergiesJson) {
+        if (allergiesJson == null || allergiesJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            return OBJECT_MAPPER.readValue(allergiesJson, new TypeReference<List<String>>() {});
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
     private List<MealRecommendationResponse.RecommendedFoodDto> enrichWithFoodId(
             MealRecommendationAiClient.AiRecommendResult result
     ) {
         List<String> foodCodes = result.foodCodes();
         List<MealRecommendationResponse.RecommendedFoodDto> recs = result.recommendations();
+        List<String> nonNullFoodCodes = foodCodes.stream()
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
 
-        // food_code → food.id 캐시
-        Map<String, Long> codeToId = new HashMap<>();
-        for (String code : foodCodes) {
-            foodRepository.findIdByFoodCode(code).ifPresent(id -> codeToId.put(code, id));
+        // food_code -> Food 엔티티 (영양정보 포함) — 단건 쿼리
+        Map<String, com.kangaroo.sparring.domain.catalog.entity.Food> codeToFood = new HashMap<>();
+        if (!nonNullFoodCodes.isEmpty()) {
+            foodRepository.findActiveByFoodCodeIn(nonNullFoodCodes)
+                    .forEach(food -> codeToFood.put(food.getFoodCode(), food));
         }
 
-        // food_code -> recommend_food (portionAmount용)
+        // food_code -> recommend_food (portionAmount 폴백용)
         Map<String, RecommendationFood> codeToRec = new HashMap<>();
-        recommendationFoodRepository.findByFoodCodeIn(foodCodes)
-                .forEach(rf -> codeToRec.put(rf.getFoodCode(), rf));
+        if (!nonNullFoodCodes.isEmpty()) {
+            recommendationFoodRepository.findByFoodCodeIn(nonNullFoodCodes)
+                    .forEach(rf -> codeToRec.put(rf.getFoodCode(), rf));
+        }
 
-        // foodId/portion 정보 주입 (index 기준으로 food_code와 매핑)
+        // foodId/영양정보 주입 (food 테이블 우선, 없으면 AI 응답 폴백)
         List<MealRecommendationResponse.RecommendedFoodDto> enriched = new ArrayList<>();
         for (int i = 0; i < recs.size(); i++) {
             MealRecommendationResponse.RecommendedFoodDto rec = recs.get(i);
             String code = i < foodCodes.size() ? foodCodes.get(i) : null;
-            Long foodId = code != null ? codeToId.get(code) : null;
+            com.kangaroo.sparring.domain.catalog.entity.Food food = code != null ? codeToFood.get(code) : null;
             RecommendationFood rf = code != null ? codeToRec.get(code) : null;
 
-            String portionAmount = rf != null ? rf.getFoodWeight() : null;
-
             enriched.add(MealRecommendationResponse.RecommendedFoodDto.builder()
-                    .foodId(foodId)
-                    .foodName(rec.getFoodName())
-                    .calories(rec.getCalories())
-                    .portionLabel("1인분")
-                    .portionAmount(portionAmount)
-                    .carbs(rec.getCarbs())
-                    .protein(rec.getProtein())
-                    .fat(rec.getFat())
-                    .fiber(rec.getFiber())
-                    .sodium(rec.getSodium())
+                    .foodId(food != null ? food.getId() : null)
+                    .foodName(food != null ? food.getName() : rec.getFoodName())
+                    .foodOrigin(food != null ? food.getFoodOrigin() : null)
+                    .categoryLarge(food != null ? food.getCategoryLarge() : null)
+                    .categoryMedium(food != null ? food.getCategoryMedium() : null)
+                    .refIntakeAmount(food != null ? food.getRefIntakeAmount() : null)
+                    .foodWeight(food != null ? food.getFoodWeight() : (rf != null ? rf.getFoodWeight() : null))
+                    .calories(food != null ? food.getCalories() : rec.getCalories())
+                    .carbs(food != null ? food.getCarbs() : rec.getCarbs())
+                    .sugar(food != null ? food.getSugar() : null)
+                    .fiber(food != null ? food.getFiber() : rec.getFiber())
+                    .protein(food != null ? food.getProtein() : rec.getProtein())
+                    .fat(food != null ? food.getFat() : rec.getFat())
+                    .saturatedFat(food != null ? food.getSaturatedFat() : null)
+                    .transFat(food != null ? food.getTransFat() : null)
+                    .cholesterol(food != null ? food.getCholesterol() : null)
+                    .sodium(food != null ? food.getSodium() : rec.getSodium())
                     .reasons(rec.getReasons())
                     .build());
         }
@@ -226,7 +236,7 @@ public class MealRecommendationService {
 
     private int resolveAge(HealthProfile profile) {
         if (profile.getBirthDate() == null) return 30;
-        return LocalDate.now().getYear() - profile.getBirthDate().getYear();
+        return Math.max(0, Period.between(profile.getBirthDate(), currentDate()).getYears());
     }
 
     @Transactional
@@ -234,7 +244,7 @@ public class MealRecommendationService {
         try {
             FoodRecommendation entity = FoodRecommendation.builder()
                     .user(user)
-                    .recommendedAt(LocalDateTime.now())
+                    .recommendedAt(LocalDateTime.now(kstClock))
                     .mealTime(mealTime.name())
                     .fallbackLevel(result.fallbackLevel())
                     .appliedConstraints(result.appliedConstraints())
@@ -246,5 +256,9 @@ public class MealRecommendationService {
         } catch (Exception e) {
             log.warn("식단 추천 로그 저장 실패 (무시)", e);
         }
+    }
+
+    private LocalDate currentDate() {
+        return LocalDate.now(kstClock);
     }
 }

@@ -26,11 +26,17 @@ public class RecommendationFood extends BaseEntity {
     @Column(name = "data_type", length = 20)
     private String dataType;
 
+    @Column(name = "food_origin", length = 30)
+    private String foodOrigin;
+
     @Column(name = "category_large", length = 50)
     private String categoryLarge;
 
     @Column(name = "category_medium", length = 50)
     private String categoryMedium;
+
+    @Column(name = "category_small", length = 50)
+    private String categorySmall;
 
     @Column(name = "rep_food_name", length = 100)
     private String repFoodName;
@@ -38,11 +44,11 @@ public class RecommendationFood extends BaseEntity {
     @Column(name = "name", nullable = false, length = 255)
     private String name;
 
-    @Column(name = "basis_amount", length = 20)
-    private String basisAmount;
+    @Column(name = "nutrient_basis", length = 20)
+    private String nutrientBasis;
 
-    @Column(name = "ref_serving_size", length = 50)
-    private String refServingSize;
+    @Column(name = "ref_intake_amount", columnDefinition = "TEXT")
+    private String refIntakeAmount;
 
     @Column(name = "food_weight", length = 50)
     private String foodWeight;
@@ -50,12 +56,15 @@ public class RecommendationFood extends BaseEntity {
     @Column(name = "manufacturer", length = 255)
     private String manufacturer;
 
+    @Column(name = "importer", length = 255)
+    private String importer;
+
+    @Column(name = "distributor", length = 255)
+    private String distributor;
+
     // 영양소 (100g/100ml 기준)
     @Column(name = "calories")
     private Double calories;
-
-    @Column(name = "water")
-    private Double water;
 
     @Column(name = "protein")
     private Double protein;
@@ -89,4 +98,7 @@ public class RecommendationFood extends BaseEntity {
 
     @Column(name = "saturated_fat")
     private Double saturatedFat;
+
+    @Column(name = "trans_fat")
+    private Double transFat;
 }

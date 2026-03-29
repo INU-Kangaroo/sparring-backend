@@ -119,22 +119,17 @@ public class FoodService {
      * 음식 생성 (관리자용)
      */
     @Transactional
-    public Long createFood(String name, Double servingSize, String servingUnit,
-                           Double calories, Double carbs, Double protein, Double fat) {
+    public Long createFood(String name, Double calories, Double carbs, Double protein, Double fat) {
         String normalizedName = normalizeRequiredText(name);
-        String normalizedServingUnit = normalizeRequiredText(servingUnit);
-        validateServingSize(servingSize);
         validateNutrition(calories, carbs, protein, fat);
 
         log.info("음식 생성 시작: name={}", normalizedName);
 
-        // 중복 확인
         foodRepository.findActiveByNormalizedName(normalizedName).ifPresent(food -> {
             throw new CustomException(ErrorCode.DUPLICATE_FOOD);
         });
 
-        // 음식 생성
-        Food food = Food.create(normalizedName, servingSize, normalizedServingUnit);
+        Food food = Food.create(normalizedName);
         foodRepository.save(food);
 
         log.info("음식 생성 완료: foodId={}", food.getId());
@@ -165,12 +160,6 @@ public class FoodService {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
         return normalized;
-    }
-
-    private void validateServingSize(Double servingSize) {
-        if (servingSize == null || servingSize <= 0d) {
-            throw new CustomException(ErrorCode.INVALID_INPUT);
-        }
     }
 
     private void validateNutrition(Double calories, Double carbs, Double protein, Double fat) {
