@@ -18,20 +18,23 @@ public class FoodResponse {
     @Schema(description = "음식명", example = "닭가슴살")
     private String name;
 
-    @Schema(description = "1회 제공량", example = "100.0")
-    private Double servingSize;
+    @Schema(description = "식품기원", example = "가정식")
+    private String foodOrigin;
 
-    @Schema(description = "제공량 단위", example = "g")
-    private String servingUnit;
+    @Schema(description = "대분류", example = "육류")
+    private String categoryLarge;
+
+    @Schema(description = "중분류", example = "닭고기")
+    private String categoryMedium;
+
+    @Schema(description = "1회 섭취참고량", example = "100g")
+    private String refIntakeAmount;
+
+    @Schema(description = "식품중량", example = "100g")
+    private String foodWeight;
 
     @Schema(description = "칼로리 (kcal)", example = "165.0")
     private Double calories;
-
-    @Schema(description = "제공량 라벨", example = "1인분")
-    private String portionLabel;
-
-    @Schema(description = "제공량 표시값", example = "350g")
-    private String portionAmount;
 
     @Schema(description = "제조사명", example = "대한푸드텍(주)")
     private String manufacturer;
@@ -40,11 +43,12 @@ public class FoodResponse {
         return FoodResponse.builder()
                 .id(food.getId())
                 .name(food.getName())
-                .servingSize(food.getServingSize())
-                .servingUnit(food.getServingUnit())
+                .foodOrigin(food.getFoodOrigin())
+                .categoryLarge(food.getCategoryLarge())
+                .categoryMedium(food.getCategoryMedium())
+                .refIntakeAmount(food.getRefIntakeAmount())
+                .foodWeight(food.getFoodWeight())
                 .calories(food.getCalories())
-                .portionLabel(food.getPortionLabel())
-                .portionAmount(food.getPortionAmount())
                 .manufacturer(food.getManufacturer())
                 .build();
     }

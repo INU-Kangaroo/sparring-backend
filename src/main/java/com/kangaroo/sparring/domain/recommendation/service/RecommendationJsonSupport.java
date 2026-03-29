@@ -1,5 +1,10 @@
 package com.kangaroo.sparring.domain.recommendation.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public final class RecommendationJsonSupport {
 
     private static final int DEFAULT_ABBREVIATE_LENGTH = 500;
@@ -38,5 +43,18 @@ public final class RecommendationJsonSupport {
             return "";
         }
         return value.length() <= maxLength ? value : value.substring(0, maxLength) + "...";
+    }
+
+    public static List<String> readStringArray(JsonNode node) {
+        List<String> values = new ArrayList<>();
+        if (node != null && node.isArray()) {
+            for (JsonNode value : node) {
+                String text = value.asText("");
+                if (!text.isBlank()) {
+                    values.add(text.trim());
+                }
+            }
+        }
+        return values;
     }
 }
