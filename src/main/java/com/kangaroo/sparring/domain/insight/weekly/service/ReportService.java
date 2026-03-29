@@ -22,6 +22,7 @@ import com.kangaroo.sparring.domain.user.repository.UserRepository;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -37,6 +38,8 @@ import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Service
 @RequiredArgsConstructor
@@ -44,13 +47,16 @@ import java.util.Optional;
 public class ReportService {
 
     private final ReportRepository reportRepository;
+    private final ReportPersistenceService reportPersistenceService;
     private final UserRepository userRepository;
     private final RecordReadService recordReadService;
     private final ReportGeminiService reportGeminiService;
     private final ReportRuleEngine reportRuleEngine;
+    private final ReportCacheService reportCacheService;
     private final Clock kstClock;
+    @Qualifier("reportAiExecutor")
+    private final Executor reportAiExecutor;
 
-    @Transactional
     public ReportResponse getReportByDate(Long userId, LocalDate date) {
         LocalDate baseDate = date != null ? date : LocalDate.now(kstClock);
         LocalDate monday = getMonday(baseDate);
@@ -58,10 +64,13 @@ public class ReportService {
 
         Optional<Report> existing = reportRepository.findByUserIdAndStartDate(userId, monday);
         if (existing.isPresent()) {
-            return buildResponse(existing.get(), userId, monday, sunday);
+            return getOrBuildCachedResponse(userId, monday, sunday, existing.get());
         }
 
-        return generateAndSave(userId, monday, sunday);
+        if (shouldPersistFinalReport(sunday)) {
+            return generateAndSave(userId, monday, sunday);
+        }
+        return generatePreview(userId, monday, sunday);
     }
 
     public Page<ReportListItemResponse> getReportHistory(Long userId, Integer year, Integer month, int page, int size) {
@@ -78,21 +87,39 @@ public class ReportService {
         Report report = reportRepository.findByIdAndUserId(reportId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REPORT_NOT_FOUND));
 
-        return buildResponse(report, userId, report.getStartDate(), report.getEndDate());
+        return getOrBuildCachedResponse(userId, report.getStartDate(), report.getEndDate(), report);
     }
 
     private ReportResponse generateAndSave(Long userId, LocalDate monday, LocalDate sunday) {
+        GeneratedReport generated = generateReport(userId, monday, sunday);
+        Report report = generated.report();
+        ReportEvidence evidence = generated.evidence();
+
+        try {
+            reportPersistenceService.save(report);
+            ReportResponse response = toResponse(report, evidence);
+            reportCacheService.cache(userId, monday, response);
+            return response;
+        } catch (DataIntegrityViolationException ex) {
+            return reportRepository.findByUserIdAndStartDate(userId, monday)
+                    .map(existing -> getOrBuildCachedResponse(userId, monday, sunday, existing))
+                    .orElseThrow(() -> ex);
+        }
+    }
+
+    private ReportResponse generatePreview(Long userId, LocalDate monday, LocalDate sunday) {
+        GeneratedReport generated = generateReport(userId, monday, sunday);
+        ReportResponse response = toResponse(generated.report(), generated.evidence());
+        reportCacheService.cache(userId, monday, response);
+        return response;
+    }
+
+    private GeneratedReport generateReport(Long userId, LocalDate monday, LocalDate sunday) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         WeeklyLogs logs = fetchWeeklyLogs(userId, monday, sunday);
-
-        if (logs.bloodSugarLogs().isEmpty()
-                && logs.bloodPressureLogs().isEmpty()
-                && logs.foodLogs().isEmpty()
-                && logs.exerciseLogs().isEmpty()) {
-            throw new CustomException(ErrorCode.REPORT_INSUFFICIENT_DATA);
-        }
+        validateWeeklyLogs(logs);
 
         ReportEvidence evidence = reportRuleEngine.evaluate(
                 monday,
@@ -101,21 +128,8 @@ public class ReportService {
                 logs.foodLogs(),
                 logs.exerciseLogs()
         );
-
-        String aiComment = reportGeminiService.generateComment(evidence);
-
-        String improvementCategory = null;
-        String improvementTimeLabel = null;
-        String improvementDetail = null;
-        List<String> improvementTips = List.of();
-
-        if (evidence.improvement() != null) {
-            improvementCategory = evidence.improvement().category().name();
-            improvementTimeLabel = evidence.improvement().timeLabel();
-            improvementDetail = evidence.improvement().detail();
-            String rawTips = reportGeminiService.generateImprovementTips(evidence.improvement());
-            improvementTips = splitTips(rawTips);
-        }
+        GeneratedAiContent generatedAiContent = generateAiContent(evidence);
+        ImprovementFields improvementFields = toImprovementFields(evidence.improvement());
 
         Report report = Report.create(
                 user,
@@ -128,20 +142,54 @@ public class ReportService {
                 evidence.score().healthManagement(),
                 evidence.score().measurementConsistency(),
                 evidence.score().lifestyle(),
-                aiComment,
-                improvementCategory,
-                improvementTimeLabel,
-                improvementDetail,
-                improvementTips
+                generatedAiContent.comment(),
+                improvementFields.category(),
+                improvementFields.timeLabel(),
+                improvementFields.detail(),
+                generatedAiContent.tips()
         );
-        try {
-            reportRepository.save(report);
-            return toResponse(report, evidence);
-        } catch (DataIntegrityViolationException ex) {
-            return reportRepository.findByUserIdAndStartDate(userId, monday)
-                    .map(existing -> buildResponse(existing, userId, monday, sunday))
-                    .orElseThrow(() -> ex);
+        return new GeneratedReport(report, evidence);
+    }
+
+    private void validateWeeklyLogs(WeeklyLogs logs) {
+        if (logs.bloodSugarLogs().isEmpty()
+                && logs.bloodPressureLogs().isEmpty()
+                && logs.foodLogs().isEmpty()
+                && logs.exerciseLogs().isEmpty()) {
+            throw new CustomException(ErrorCode.REPORT_INSUFFICIENT_DATA);
         }
+    }
+
+    private GeneratedAiContent generateAiContent(ReportEvidence evidence) {
+        CompletableFuture<String> commentFuture =
+                CompletableFuture.supplyAsync(
+                        () -> reportGeminiService.generateComment(evidence),
+                        reportAiExecutor
+                );
+
+        CompletableFuture<List<String>> tipsFuture = generateTipsFuture(evidence.improvement());
+        return new GeneratedAiContent(commentFuture.join(), tipsFuture.join());
+    }
+
+    private CompletableFuture<List<String>> generateTipsFuture(ImprovementEvidence improvement) {
+        if (improvement == null) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        return CompletableFuture.supplyAsync(
+                () -> splitTips(reportGeminiService.generateImprovementTips(improvement)),
+                reportAiExecutor
+        );
+    }
+
+    private ImprovementFields toImprovementFields(ImprovementEvidence improvement) {
+        if (improvement == null) {
+            return ImprovementFields.empty();
+        }
+        return new ImprovementFields(
+                improvement.category().name(),
+                improvement.timeLabel(),
+                improvement.detail()
+        );
     }
 
     private ReportResponse buildResponse(Report report, Long userId, LocalDate monday, LocalDate sunday) {
@@ -156,6 +204,15 @@ public class ReportService {
         );
 
         return toResponse(report, evidence);
+    }
+
+    private ReportResponse getOrBuildCachedResponse(Long userId, LocalDate monday, LocalDate sunday, Report report) {
+        return reportCacheService.getCached(userId, monday)
+                .orElseGet(() -> {
+                    ReportResponse response = buildResponse(report, userId, monday, sunday);
+                    reportCacheService.cache(userId, monday, response);
+                    return response;
+                });
     }
 
     private WeeklyLogs fetchWeeklyLogs(Long userId, LocalDate monday, LocalDate sunday) {
@@ -189,13 +246,26 @@ public class ReportService {
                     .build();
         }
 
-        return ReportResponse.of(
-                report,
-                buildScoreLabel(report.getOverallScore()),
-                dailyConditions,
-                highlights,
-                improvement
-        );
+        int overallScore = evidence.score().overallScore();
+        return ReportResponse.builder()
+                .reportId(report.getId())
+                .startDate(report.getStartDate())
+                .endDate(report.getEndDate())
+                .recordDays(report.getRecordDays())
+                .bloodSugarRecordDays(report.getBloodSugarRecordDays())
+                .bloodPressureRecordDays(report.getBloodPressureRecordDays())
+                .aiComment(report.getAiComment())
+                .overallScore(overallScore)
+                .scoreLabel(buildScoreLabel(overallScore))
+                .scores(ReportResponse.ScoreDetail.builder()
+                        .healthManagement(evidence.score().healthManagement())
+                        .measurementConsistency(evidence.score().measurementConsistency())
+                        .lifestyle(evidence.score().lifestyle())
+                        .build())
+                .dailyConditions(dailyConditions)
+                .highlights(highlights)
+                .improvement(improvement)
+                .build();
     }
 
     private DailyCondition toDailyCondition(DailyConditionEvidence evidence) {
@@ -223,10 +293,16 @@ public class ReportService {
         return "이번 주는 조금 아쉬웠어요. 다음 주엔 더 잘할 수 있어요! 🌱";
     }
 
+    private boolean shouldPersistFinalReport(LocalDate sunday) {
+        LocalDate today = LocalDate.now(kstClock);
+        return today.isAfter(sunday);
+    }
+
     private List<String> splitTips(String tips) {
         if (tips == null || tips.isBlank()) return List.of();
         return Arrays.stream(tips.split("\\n"))
                 .map(String::trim)
+                .map(s -> s.replaceFirst("^[\\-•\\d.\\)\\s]+", "").trim())
                 .filter(s -> !s.isEmpty())
                 .toList();
     }
@@ -236,6 +312,28 @@ public class ReportService {
             List<BloodPressureRecord> bloodPressureLogs,
             List<FoodRecord> foodLogs,
             List<ExerciseRecord> exerciseLogs
+    ) {
+    }
+
+    private record GeneratedReport(
+            Report report,
+            ReportEvidence evidence
+    ) {
+    }
+
+    private record ImprovementFields(
+            String category,
+            String timeLabel,
+            String detail
+    ) {
+        private static ImprovementFields empty() {
+            return new ImprovementFields(null, null, null);
+        }
+    }
+
+    private record GeneratedAiContent(
+            String comment,
+            List<String> tips
     ) {
     }
 }

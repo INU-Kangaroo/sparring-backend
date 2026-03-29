@@ -25,7 +25,8 @@ public class ReportRuleEngine {
 
     private static final int WEEK_DAYS = 7;
 
-    private final ReportRuleSupport reportRuleSupport;
+    private final ReportScoreCalculator scoreCalculator;
+    private final ReportEvidenceBuilder evidenceBuilder;
 
     public ReportEvidence evaluate(
             LocalDate monday,
@@ -34,19 +35,19 @@ public class ReportRuleEngine {
             List<FoodRecord> foodLogs,
             List<ExerciseRecord> exerciseLogs
     ) {
-        ReportRuleSupport.BloodSugarStats bs = reportRuleSupport.calcBloodSugarStats(bsLogs);
-        ReportRuleSupport.BloodPressureStats bp = reportRuleSupport.calcBloodPressureStats(bpLogs);
-        ReportRuleSupport.MealStats meal = reportRuleSupport.calcMealStats(foodLogs);
-        ReportRuleSupport.ExerciseStats exercise = reportRuleSupport.calcExerciseStats(exerciseLogs);
+        ReportScoreCalculator.BloodSugarStats bs = scoreCalculator.calcBloodSugarStats(bsLogs);
+        ReportScoreCalculator.BloodPressureStats bp = scoreCalculator.calcBloodPressureStats(bpLogs);
+        ReportScoreCalculator.MealStats meal = scoreCalculator.calcMealStats(foodLogs);
+        ReportScoreCalculator.ExerciseStats exercise = scoreCalculator.calcExerciseStats(exerciseLogs);
 
-        int healthManagement = reportRuleSupport.calcHealthManagementScore(bs, bp);
+        int healthManagement = scoreCalculator.calcHealthManagementScore(bs, bp);
         int bsRecordDays = calcMeasurementRecordDays(bsLogs, monday);
         int bpRecordDays = calcMeasurementRecordDays(bpLogs, monday);
-        int measurementConsistency = reportRuleSupport.calcMeasurementConsistencyScore(bsRecordDays, bpRecordDays);
-        int lifestyle = reportRuleSupport.calcLifestyleScore(meal, exercise);
-        int stability = reportRuleSupport.calcStabilityScore(bsLogs, bpLogs);
-        int trend = reportRuleSupport.calcTrendScore(monday, bsLogs, bpLogs);
-        int overall = reportRuleSupport.calcOverallScore(
+        int measurementConsistency = scoreCalculator.calcMeasurementConsistencyScore(bs.totalCount, bp.totalCount);
+        int lifestyle = scoreCalculator.calcLifestyleScore(meal, exercise);
+        int stability = scoreCalculator.calcStabilityScore(bsLogs, bpLogs);
+        int trend = scoreCalculator.calcTrendScore(monday, bsLogs, bpLogs);
+        int overall = scoreCalculator.calcOverallScore(
                 healthManagement,
                 measurementConsistency,
                 lifestyle,
@@ -56,13 +57,13 @@ public class ReportRuleEngine {
                 foodLogs.isEmpty() && exerciseLogs.isEmpty()
         );
 
-        List<DailyConditionEvidence> dailyConditions = reportRuleSupport.buildDailyConditions(
+        List<DailyConditionEvidence> dailyConditions = evidenceBuilder.buildDailyConditions(
                 monday, bsLogs, bpLogs, foodLogs, exerciseLogs
         );
-        List<HighlightEvidence> highlights = reportRuleSupport.buildHighlights(
-                bsLogs, bpLogs, foodLogs, exerciseLogs, monday
+        List<HighlightEvidence> highlights = evidenceBuilder.buildHighlights(
+                bsLogs, bpLogs, foodLogs, exerciseLogs, monday, dailyConditions
         );
-        ImprovementEvidence improvement = reportRuleSupport.selectImprovementArea(bs, bp, meal, exercise);
+        ImprovementEvidence improvement = evidenceBuilder.selectImprovementArea(bs, bp, meal, exercise);
 
         CommentEvidence comment = new CommentEvidence(
                 bs.totalCount > 0 ? bs.overallAvg : null,
@@ -74,8 +75,8 @@ public class ReportRuleEngine {
 
         return new ReportEvidence(
                 comment.recordDays(),
-                calcMeasurementRecordDays(bsLogs, monday),
-                calcMeasurementRecordDays(bpLogs, monday),
+                bsRecordDays,
+                bpRecordDays,
                 new ScoreEvidence(healthManagement, measurementConsistency, lifestyle, overall),
                 dailyConditions,
                 highlights,

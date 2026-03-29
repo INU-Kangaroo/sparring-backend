@@ -27,11 +27,17 @@ public class Food extends BaseEntity {
     @Column(name = "data_type", length = 20)
     private String dataType;
 
+    @Column(name = "food_origin", length = 30)
+    private String foodOrigin;
+
     @Column(name = "category_large", length = 50)
     private String categoryLarge;
 
     @Column(name = "category_medium", length = 50)
     private String categoryMedium;
+
+    @Column(name = "category_small", length = 50)
+    private String categorySmall;
 
     @Column(name = "rep_food_name", length = 100)
     private String repFoodName;
@@ -39,29 +45,23 @@ public class Food extends BaseEntity {
     @Column(name = "name", nullable = false, length = 255)
     private String name;
 
-    @Column(name = "serving_size")
-    private Double servingSize;
+    @Column(name = "nutrient_basis", length = 20)
+    private String nutrientBasis;
 
-    @Column(name = "serving_unit", length = 20)
-    private String servingUnit;
-
-    @Column(name = "basis_amount", length = 20)
-    private String basisAmount;
-
-    @Column(name = "ref_serving_size", length = 50)
-    private String refServingSize;
+    @Column(name = "ref_intake_amount", columnDefinition = "TEXT")
+    private String refIntakeAmount;
 
     @Column(name = "food_weight", length = 50)
     private String foodWeight;
 
-    @Column(name = "portion_label", length = 20)
-    private String portionLabel;
-
-    @Column(name = "portion_amount", columnDefinition = "TEXT")
-    private String portionAmount;
-
     @Column(name = "manufacturer", length = 255)
     private String manufacturer;
+
+    @Column(name = "importer", length = 255)
+    private String importer;
+
+    @Column(name = "distributor", length = 255)
+    private String distributor;
 
     // 영양소 (100g/100ml 기준)
     @Column(name = "calories")
@@ -103,29 +103,25 @@ public class Food extends BaseEntity {
     @Column(name = "saturated_fat")
     private Double saturatedFat;
 
+    @Column(name = "trans_fat")
+    private Double transFat;
+
     /**
      * 음식 생성
      */
-    public static Food create(String name, Double servingSize, String servingUnit) {
+    public static Food create(String name) {
         return Food.builder()
                 .name(name)
-                .servingSize(servingSize)
-                .servingUnit(servingUnit)
                 .build();
     }
 
-    /**
-     * 음식 정보 수정
-     */
-    public void update(String name, Double servingSize, String servingUnit) {
+    public void update(String name) {
         this.name = name;
-        this.servingSize = servingSize;
-        this.servingUnit = servingUnit;
     }
 
-    public void updateDisplayMeta(String portionLabel, String portionAmount, String manufacturer) {
-        this.portionLabel = portionLabel;
-        this.portionAmount = portionAmount;
+    public void updateDisplayMeta(String refIntakeAmount, String foodWeight, String manufacturer) {
+        this.refIntakeAmount = refIntakeAmount;
+        this.foodWeight = foodWeight;
         this.manufacturer = manufacturer;
     }
 }

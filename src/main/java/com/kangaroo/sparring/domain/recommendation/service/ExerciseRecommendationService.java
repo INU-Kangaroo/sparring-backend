@@ -49,7 +49,6 @@ public class ExerciseRecommendationService {
     private final RecommendationPromptTemplateService promptTemplateService;
     private final RecommendationContextService recommendationContextService;
     private final RecommendationJsonMappingSupport jsonMappingSupport;
-    private final RecommendationParsingSupport parsingSupport;
     private final ExerciseCandidateService exerciseCandidateService;
 
     public ExerciseRecommendationResponse getExerciseRecommendations(Long userId, ExerciseRecommendationRequest request) {
@@ -57,8 +56,8 @@ public class ExerciseRecommendationService {
         LocalDateTime cacheThreshold = LocalDateTime.now().minusHours(CACHE_HOURS);
 
         return recommendationRepository
-                .findTopByUserAndTypeAndFilterDurationAndFilterIntensityAndFilterLocationAndIsDeletedFalseAndCreatedAtAfterOrderByCreatedAtDesc(
-                        user,
+                .findCachedExerciseRecommendation(
+                        user.getId(),
                         RecommendationType.EXERCISE,
                         request.getDuration().name(),
                         request.getIntensity().name(),
@@ -124,7 +123,7 @@ public class ExerciseRecommendationService {
     private ExerciseRecommendationResponse parseExerciseResponse(String geminiResponse) {
         try {
             String sanitizedJson = sanitizeRangeNumberFields(RecommendationJsonSupport.extractJsonObject(geminiResponse));
-            JsonNode root = parsingSupport.readTreeOrThrow(sanitizedJson, geminiResponse, "Gemini 운동 추천 응답");
+            JsonNode root = jsonMappingSupport.readTreeOrThrow(sanitizedJson, geminiResponse, "Gemini 운동 추천 응답");
 
             List<CardiacExerciseDto> cardiacExercises = new ArrayList<>();
             JsonNode cardiacNode = root.path("cardiacExercises");

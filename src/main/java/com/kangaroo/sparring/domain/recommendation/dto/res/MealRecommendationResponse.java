@@ -28,17 +28,32 @@ public class MealRecommendationResponse {
         @Schema(description = "식품명", example = "현미밥")
         private String foodName;
 
+        @Schema(description = "식품기원", example = "가정식")
+        private String foodOrigin;
+
+        @Schema(description = "대분류", example = "밥류")
+        private String categoryLarge;
+
+        @Schema(description = "중분류", example = "잡곡밥")
+        private String categoryMedium;
+
+        @Schema(description = "1회 섭취참고량", example = "210g")
+        private String refIntakeAmount;
+
+        @Schema(description = "식품중량", example = "210g")
+        private String foodWeight;
+
         @Schema(description = "칼로리 (kcal)", example = "150.0")
         private Double calories;
 
-        @Schema(description = "1인분 라벨", example = "1인분")
-        private String portionLabel;
-
-        @Schema(description = "1인분 중량", example = "240g")
-        private String portionAmount;
-
         @Schema(description = "탄수화물 (g)", example = "32.0")
         private Double carbs;
+
+        @Schema(description = "당류 (g)", example = "0.2")
+        private Double sugar;
+
+        @Schema(description = "식이섬유 (g)", example = "1.2")
+        private Double fiber;
 
         @Schema(description = "단백질 (g)", example = "3.0")
         private Double protein;
@@ -46,8 +61,14 @@ public class MealRecommendationResponse {
         @Schema(description = "지방 (g)", example = "0.8")
         private Double fat;
 
-        @Schema(description = "식이섬유 (g)", example = "1.2")
-        private Double fiber;
+        @Schema(description = "포화지방 (g)", example = "0.2")
+        private Double saturatedFat;
+
+        @Schema(description = "트랜스지방 (g)", example = "0.0")
+        private Double transFat;
+
+        @Schema(description = "콜레스테롤 (mg)", example = "0.0")
+        private Double cholesterol;
 
         @Schema(description = "나트륨 (mg)", example = "2.0")
         private Double sodium;
