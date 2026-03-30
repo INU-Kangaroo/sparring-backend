@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "exercise",
+@Table(name = "exercise_master",
         indexes = {
                 @Index(name = "idx_exercise_category", columnList = "category"),
                 @Index(name = "idx_exercise_intensity", columnList = "intensity"),
