@@ -1,83 +1,135 @@
--- V5: food 테이블 컬럼 정비 (부분 적용 상태에서도 재실행 가능하도록 방어적으로 처리)
+-- V5: food 테이블 컬럼 정비 (MySQL 5.7/8 호환 + 재실행 안전)
 
--- 1. 불필요 컬럼 제거
-ALTER TABLE food
-    DROP COLUMN IF EXISTS serving_size,
-    DROP COLUMN IF EXISTS serving_unit,
-    DROP COLUMN IF EXISTS portion_label,
-    DROP COLUMN IF EXISTS portion_amount;
+-- 1) 불필요 컬럼 제거
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'serving_size'),
+        'ALTER TABLE food DROP COLUMN serving_size',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- 2. V2에서 추가된 컬럼 제거
-ALTER TABLE food
-    DROP COLUMN IF EXISTS external_food_code,
-    DROP COLUMN IF EXISTS source_dataset,
-    DROP COLUMN IF EXISTS source_serving_base_raw;
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'serving_unit'),
+        'ALTER TABLE food DROP COLUMN serving_unit',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- 3. 기존 컬럼 정리
--- basis_amount -> nutrient_basis
-SET @has_basis_amount := (
-    SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'basis_amount'
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'portion_label'),
+        'ALTER TABLE food DROP COLUMN portion_label',
+        'SELECT 1'
+    )
 );
-SET @has_nutrient_basis := (
-    SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'nutrient_basis'
-);
-SET @sql := IF(
-    @has_basis_amount = 1 AND @has_nutrient_basis = 0,
-    'ALTER TABLE food CHANGE COLUMN basis_amount nutrient_basis VARCHAR(20) NULL COMMENT ''영양성분함량기준량 (100g/100mL)''',
-    'SELECT 1'
-);
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- ref_serving_size -> ref_intake_amount
-SET @has_ref_serving_size := (
-    SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'ref_serving_size'
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'portion_amount'),
+        'ALTER TABLE food DROP COLUMN portion_amount',
+        'SELECT 1'
+    )
 );
-SET @has_ref_intake_amount := (
-    SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'ref_intake_amount'
-);
-SET @sql := IF(
-    @has_ref_serving_size = 1 AND @has_ref_intake_amount = 0,
-    'ALTER TABLE food CHANGE COLUMN ref_serving_size ref_intake_amount TEXT NULL COMMENT ''1인(회)분량 참고량 / 1회 섭취참고량''',
-    'SELECT 1'
-);
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- 4. 신규 컬럼 추가
-ALTER TABLE food
-    ADD COLUMN IF NOT EXISTS food_origin    VARCHAR(30)  NULL COMMENT '식품기원명 (가정식/외식/가공식품 등)' AFTER data_type,
-    ADD COLUMN IF NOT EXISTS category_small VARCHAR(50)  NULL COMMENT '식품소분류명' AFTER category_medium,
-    ADD COLUMN IF NOT EXISTS trans_fat      DOUBLE       NULL COMMENT '트랜스지방산(g)' AFTER saturated_fat,
-    ADD COLUMN IF NOT EXISTS importer       VARCHAR(255) NULL COMMENT '수입업체명' AFTER manufacturer,
-    ADD COLUMN IF NOT EXISTS distributor    VARCHAR(255) NULL COMMENT '유통업체명' AFTER importer;
-
--- 5. food_code 타입 정리
-ALTER TABLE food
-    MODIFY COLUMN food_code VARCHAR(64) NULL;
-
--- 6. meal_nutrition 데이터 food로 이관 (meal_nutrition이 남아있는 경우만)
-SET @has_meal_nutrition := (
-    SELECT COUNT(*) FROM information_schema.tables
-    WHERE table_schema = DATABASE() AND table_name = 'meal_nutrition'
+-- 2) V2 관련 임시 컬럼 제거
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'external_food_code'),
+        'ALTER TABLE food DROP COLUMN external_food_code',
+        'SELECT 1'
+    )
 );
-SET @sql := IF(
-    @has_meal_nutrition = 1,
-    'UPDATE food f
-      INNER JOIN meal_nutrition mn ON f.id = mn.food_id
-     SET f.cholesterol = COALESCE(f.cholesterol, mn.cholesterol),
-         f.saturated_fat = COALESCE(f.saturated_fat, mn.saturated_fat)',
-    'SELECT 1'
-);
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'source_dataset'),
+        'ALTER TABLE food DROP COLUMN source_dataset',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'source_serving_base_raw'),
+        'ALTER TABLE food DROP COLUMN source_serving_base_raw',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 3) rename 대신 신규 컬럼만 보강 (부분 적용 DB에서도 안전)
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'nutrient_basis'),
+        'SELECT 1',
+        'ALTER TABLE food ADD COLUMN nutrient_basis VARCHAR(20) NULL COMMENT ''영양성분함량기준량 (100g/100mL)'''
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'ref_intake_amount'),
+        'SELECT 1',
+        'ALTER TABLE food ADD COLUMN ref_intake_amount TEXT NULL COMMENT ''1인(회)분량 참고량 / 1회 섭취참고량'''
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 4) 신규 컬럼 추가
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'food_origin'),
+        'SELECT 1',
+        'ALTER TABLE food ADD COLUMN food_origin VARCHAR(30) NULL COMMENT ''식품기원명 (가정식/외식/가공식품 등)'''
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'category_small'),
+        'SELECT 1',
+        'ALTER TABLE food ADD COLUMN category_small VARCHAR(50) NULL COMMENT ''식품소분류명'''
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'trans_fat'),
+        'SELECT 1',
+        'ALTER TABLE food ADD COLUMN trans_fat DOUBLE NULL COMMENT ''트랜스지방산(g)'''
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'importer'),
+        'SELECT 1',
+        'ALTER TABLE food ADD COLUMN importer VARCHAR(255) NULL COMMENT ''수입업체명'''
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+    SELECT IF(
+        EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'food' AND column_name = 'distributor'),
+        'SELECT 1',
+        'ALTER TABLE food ADD COLUMN distributor VARCHAR(255) NULL COMMENT ''유통업체명'''
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 5) 잔존 테이블 정리
 DROP TABLE IF EXISTS meal_nutrition;
 DROP TABLE IF EXISTS food_import_staging;
