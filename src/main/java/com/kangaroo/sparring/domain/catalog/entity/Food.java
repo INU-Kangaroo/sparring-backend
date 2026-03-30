@@ -9,7 +9,7 @@ import lombok.*;
  * meal_nutrition 통합 — CSV 컬럼 최대한 보존
  */
 @Entity
-@Table(name = "food")
+@Table(name = "food_master")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
