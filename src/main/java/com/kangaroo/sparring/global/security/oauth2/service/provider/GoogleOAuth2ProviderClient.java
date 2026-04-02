@@ -19,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -53,6 +54,12 @@ public class GoogleOAuth2ProviderClient {
 
     @Value("${spring.oauth2.google.user-info-uri}")
     private String googleUserInfoUri;
+
+    @Value("${spring.oauth2.google.people-uri:https://people.googleapis.com/v1/people/me}")
+    private String googlePeopleUri;
+
+    @Value("${spring.oauth2.google.people-person-fields:birthdays,genders}")
+    private String googlePeoplePersonFields;
 
     @Value("${spring.oauth2.google.token-info-uri}")
     private String googleTokenInfoUri;
@@ -102,10 +109,60 @@ public class GoogleOAuth2ProviderClient {
                     entity,
                     MAP_RESPONSE_TYPE
             );
-            return response.getBody();
+            Map<String, Object> userInfo = response.getBody();
+            if (userInfo == null) {
+                throw new CustomException(ErrorCode.INVALID_TOKEN);
+            }
+
+            Map<String, Object> merged = new HashMap<>(userInfo);
+            enrichWithPeopleInfo(entity, merged);
+            return merged;
         } catch (HttpClientErrorException ex) {
             log.warn("Google userinfo request failed: status={}, body={}", ex.getStatusCode(), ex.getResponseBodyAsString());
             throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+    }
+
+    private void enrichWithPeopleInfo(HttpEntity<Void> entity, Map<String, Object> targetAttributes) {
+        if (googlePeopleUri == null || googlePeopleUri.isBlank() || googlePeoplePersonFields == null || googlePeoplePersonFields.isBlank()) {
+            return;
+        }
+
+        String peopleUri = UriComponentsBuilder.fromUriString(googlePeopleUri)
+                .queryParam("personFields", googlePeoplePersonFields)
+                .toUriString();
+        try {
+            ResponseEntity<Map<String, Object>> peopleResponse = restTemplate.exchange(
+                    peopleUri,
+                    HttpMethod.GET,
+                    entity,
+                    MAP_RESPONSE_TYPE
+            );
+            Map<String, Object> peopleBody = peopleResponse.getBody();
+            if (peopleBody == null) {
+                return;
+            }
+
+            Object birthdays = peopleBody.get("birthdays");
+            if (birthdays != null) {
+                targetAttributes.put("birthdays", birthdays);
+            }
+
+            Object genders = peopleBody.get("genders");
+            if (genders != null) {
+                targetAttributes.put("genders", genders);
+            }
+        } catch (HttpClientErrorException ex) {
+            if (ex.getStatusCode().value() == 401) {
+                log.warn("Google People API request failed with unauthorized token: status={}, body={}",
+                        ex.getStatusCode(), ex.getResponseBodyAsString());
+                throw new CustomException(ErrorCode.INVALID_TOKEN);
+            }
+
+            log.info("Google People API request skipped: status={}, body={}",
+                    ex.getStatusCode(), ex.getResponseBodyAsString());
+        } catch (RuntimeException ex) {
+            log.info("Google People API request skipped due to unexpected error: {}", ex.getMessage());
         }
     }
 

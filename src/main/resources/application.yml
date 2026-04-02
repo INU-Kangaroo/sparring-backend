@@ -54,11 +54,15 @@ spring:
       sdk-redirect-uri: ${GOOGLE_SDK_REDIRECT_URI:}
       token-uri: https://oauth2.googleapis.com/token
       user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+      people-uri: https://people.googleapis.com/v1/people/me
+      people-person-fields: birthdays,genders
       token-info-uri: https://oauth2.googleapis.com/tokeninfo
       user-name-attribute: sub
       scope:
         - profile
         - email
+        - https://www.googleapis.com/auth/user.birthday.read
+        - https://www.googleapis.com/auth/user.gender.read
     kakao:
       client-id: ${KAKAO_CLIENT_ID}
       client-secret: ${KAKAO_CLIENT_SECRET:}
