@@ -11,10 +11,13 @@ import com.kangaroo.sparring.domain.record.blood.dto.req.BloodSugarLogCreateRequ
 import com.kangaroo.sparring.domain.record.blood.dto.res.BloodPressureLogResponse;
 import com.kangaroo.sparring.domain.record.blood.dto.res.BloodSugarLogResponse;
 import com.kangaroo.sparring.domain.record.api.dto.req.RecordQueryRequest;
+import com.kangaroo.sparring.domain.record.insulin.dto.req.InsulinLogCreateRequest;
+import com.kangaroo.sparring.domain.record.insulin.dto.res.InsulinLogResponse;
 import com.kangaroo.sparring.domain.record.exercise.service.ExerciseLogService;
 import com.kangaroo.sparring.domain.record.food.service.FoodLogService;
 import com.kangaroo.sparring.domain.record.blood.service.BloodPressureService;
 import com.kangaroo.sparring.domain.record.blood.service.BloodSugarService;
+import com.kangaroo.sparring.domain.record.insulin.service.InsulinLogService;
 import com.kangaroo.sparring.global.security.principal.PrincipalResolver;
 import com.kangaroo.sparring.global.security.principal.UserIdPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,6 +47,7 @@ public class RecordController {
 
     private final BloodSugarService bloodSugarService;
     private final BloodPressureService bloodPressureService;
+    private final InsulinLogService insulinLogService;
     private final FoodLogService foodLogService;
     private final ExerciseLogService exerciseLogService;
     private final Clock kstClock;
@@ -100,6 +104,27 @@ public class RecordController {
         Long userId = PrincipalResolver.resolveUserId(principal);
         var range = query.toRange(kstClock);
         return ResponseEntity.ok(bloodPressureService.getBloodPressureLogs(userId, range.start(), range.end()));
+    }
+
+    @Operation(summary = "인슐린 기록 등록")
+    @PostMapping("/insulin")
+    public ResponseEntity<InsulinLogResponse> createInsulinRecord(
+            @AuthenticationPrincipal UserIdPrincipal principal,
+            @Valid @RequestBody InsulinLogCreateRequest request
+    ) {
+        Long userId = PrincipalResolver.resolveUserId(principal);
+        return ResponseEntity.status(HttpStatus.CREATED).body(insulinLogService.createInsulinLog(userId, request));
+    }
+
+    @Operation(summary = "인슐린 기록 조회", description = "period(daily/weekly/monthly/range) 기준으로 인슐린 기록 조회")
+    @GetMapping("/insulin")
+    public ResponseEntity<List<InsulinLogResponse>> getInsulinRecords(
+            @AuthenticationPrincipal UserIdPrincipal principal,
+            @ParameterObject RecordQueryRequest query
+    ) {
+        Long userId = PrincipalResolver.resolveUserId(principal);
+        var range = query.toRange(kstClock);
+        return ResponseEntity.ok(insulinLogService.getInsulinLogs(userId, range.start(), range.end()));
     }
 
     @Operation(summary = "식사 기록 등록")
