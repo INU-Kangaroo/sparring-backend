@@ -1,17 +1,14 @@
 package com.kangaroo.sparring.domain.prediction.service;
 
 import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
+import com.kangaroo.sparring.domain.record.common.read.InsulinRecord;
 import com.kangaroo.sparring.domain.catalog.entity.Food;
 import com.kangaroo.sparring.domain.catalog.repository.FoodRepository;
-import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
-import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
 import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
 import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import com.kangaroo.sparring.domain.prediction.client.MlServerClient;
 import com.kangaroo.sparring.domain.prediction.dto.res.GlucosePredictionResponse;
-import com.kangaroo.sparring.domain.survey.type.DrinkingFrequency;
 import com.kangaroo.sparring.domain.user.entity.User;
-import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -20,11 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.LocalTime;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.Period;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -35,10 +30,10 @@ import java.util.List;
 public class GlucosePredictionService {
 
     private static final int GLUCOSE_HISTORY_COUNT = 3;
+    private static final int INSULIN_HISTORY_COUNT = 10;
 
     private final RecordReadService recordReadService;
     private final FoodRepository foodRepository;
-    private final HealthProfileRepository healthProfileRepository;
     private final MlServerClient mlServerClient;
     private final Clock kstClock;
 
@@ -49,10 +44,6 @@ public class GlucosePredictionService {
 
         double carbIntake = food.getCarbs() != null ? food.getCarbs() : 0.0;
 
-        // 건강 프로필 조회
-        HealthProfile profile = healthProfileRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.HEALTH_PROFILE_NOT_FOUND));
-
         // 최근 혈당 기록 3개 조회
         List<BloodSugarRecord> recentLogs = recordReadService
                 .getRecentBloodSugarRecords(user.getId(), GLUCOSE_HISTORY_COUNT);
@@ -61,39 +52,66 @@ public class GlucosePredictionService {
             throw new CustomException(ErrorCode.INSUFFICIENT_DATA_FOR_PREDICTION);
         }
 
-        List<Double> glucoseHistory = recentLogs.stream()
-                .map(log -> (double) log.getGlucoseLevel())
+        LocalDateTime timestamp = LocalDateTime.now(kstClock).withNano(0);
+        List<BloodSugarRecord> glucoseHistory = recentLogs.stream()
+                .sorted(Comparator.comparing(BloodSugarRecord::getMeasurementTime))
+                .toList();
+        int mealType = resolveMealType(LocalTime.now(kstClock));
+        int steps = 0;
+        double intensity = resolveTodayIntensity(user.getId());
+        List<InsulinRecord> insulinRecords = recordReadService
+                .getRecentInsulinRecords(user.getId(), INSULIN_HISTORY_COUNT, timestamp)
+                .stream()
+                .sorted(Comparator.comparing(InsulinRecord::getUsedAt))
                 .toList();
 
-        // ML 요청 필드 조립
-        int mealType = resolveMealType(LocalTime.now(kstClock));
-        double age = resolveAge(profile);
-        int sex = resolveSex(profile.getGender());
-        double weight = (profile.getWeight() != null) ? profile.getWeight().doubleValue() : 60.0;
-        int caffeine = Boolean.TRUE.equals(profile.getCaffeineIntake()) ? 1 : 0;
-        int medication = (profile.getMedications() != null && !profile.getMedications().isBlank()) ? 1 : 0;
-        int alcohol = resolveAlcohol(profile.getDrinkingFrequency());
-        double intensity = resolveTodayIntensity(user.getId());
+        boolean tempBasalActive = insulinRecords.stream().anyMatch(InsulinRecord::isTempBasalActive);
+        double tempBasalValue = insulinRecords.stream()
+                .filter(InsulinRecord::isTempBasalActive)
+                .max(Comparator.comparing(InsulinRecord::getUsedAt))
+                .map(record -> record.getTempBasalValue().doubleValue())
+                .orElse(0.0);
 
         // ML 서버 호출
-        GlucosePredictionResponse.ForecastPoint[] points = mlServerClient.predictGlucose(
-                glucoseHistory, carbIntake, mealType, age, sex, weight,
-                caffeine, medication, alcohol, intensity
+        MlServerClient.PredictionResult mlResult = mlServerClient.predictGlucose(
+                timestamp,
+                glucoseHistory,
+                carbIntake,
+                mealType,
+                steps,
+                intensity,
+                insulinRecords,
+                tempBasalActive,
+                tempBasalValue
         );
-        if (points.length == 0) {
+        List<GlucosePredictionResponse.ForecastPoint> points = mlResult.getForecast();
+        if (points.isEmpty()) {
             throw new CustomException(ErrorCode.AI_PREDICTION_FAILED, "예측 포인트가 없습니다.");
         }
 
-        // peak 계산
-        GlucosePredictionResponse.ForecastPoint peak = Arrays.stream(points)
-                .max(Comparator.comparingDouble(GlucosePredictionResponse.ForecastPoint::getPredictedGlucose))
-                .orElse(points[0]);
+        GlucosePredictionResponse.Peak peak = mlResult.getPeak();
+        if (peak == null) {
+            GlucosePredictionResponse.ForecastPoint peakPoint = points.stream()
+                    .max(Comparator.comparingDouble(GlucosePredictionResponse.ForecastPoint::getPredictedGlucose))
+                    .orElse(points.get(0));
+            peak = GlucosePredictionResponse.Peak.builder()
+                    .peakGlucose(peakPoint.getPredictedGlucose())
+                    .peakTime(peakPoint.getTime())
+                    .peakOffsetMinutes(peakPoint.getOffsetMinutes())
+                    .build();
+        }
 
         return GlucosePredictionResponse.of(
                 food.getName(),
-                Arrays.asList(points),
-                peak.getPredictedGlucose(),
-                peak.getOffsetMinutes()
+                mlResult.getPredictedGlucose(),
+                mlResult.getPredictionOffsetMinutes(),
+                mlResult.getPredictedTime(),
+                points,
+                mlResult.getMilestones(),
+                peak,
+                mlResult.getDebug(),
+                peak.getPeakGlucose(),
+                peak.getPeakOffsetMinutes()
         );
     }
 
@@ -104,22 +122,6 @@ public class GlucosePredictionService {
         if (hour >= 12 && hour < 18) return 2;
         if (hour >= 18 && hour < 24) return 3;
         return 4; // 0~6시 간식
-    }
-
-    private double resolveAge(HealthProfile profile) {
-        if (profile.getBirthDate() == null) return 30.0;
-        return Math.max(0, Period.between(profile.getBirthDate(), LocalDate.now(kstClock)).getYears());
-    }
-
-    // FEMALE=0, MALE=1
-    private int resolveSex(Gender gender) {
-        if (gender == null) return 0;
-        return gender == Gender.MALE ? 1 : 0;
-    }
-
-    private int resolveAlcohol(DrinkingFrequency frequency) {
-        if (frequency == null || frequency == DrinkingFrequency.NONE) return 0;
-        return 1;
     }
 
     // 오늘 운동 기록에서 intensity 계산 (metValue 기준, 없으면 0)
