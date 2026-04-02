@@ -4,6 +4,7 @@ import com.kangaroo.sparring.domain.record.blood.repository.BloodPressureLogRepo
 import com.kangaroo.sparring.domain.record.blood.repository.BloodSugarLogRepository;
 import com.kangaroo.sparring.domain.record.exercise.repository.ExerciseLogRepository;
 import com.kangaroo.sparring.domain.record.food.repository.FoodLogRepository;
+import com.kangaroo.sparring.domain.record.insulin.repository.InsulinLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class RecordReadService {
     private final BloodPressureLogRepository bloodPressureLogRepository;
     private final FoodLogRepository foodLogRepository;
     private final ExerciseLogRepository exerciseLogRepository;
+    private final InsulinLogRepository insulinLogRepository;
 
     public List<BloodSugarRecord> getBloodSugarRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return bloodSugarLogRepository.findByUserIdAndDateRange(userId, start, end).stream()
@@ -86,6 +88,19 @@ public class RecordReadService {
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = today.atTime(LocalTime.MAX);
         return getExerciseRecords(userId, start, end);
+    }
+
+    public List<InsulinRecord> getRecentInsulinRecords(Long userId, int count, LocalDateTime baseTime) {
+        return insulinLogRepository.findRecentByUserIdBefore(userId, baseTime, PageRequest.of(0, count)).stream()
+                .map(log -> new InsulinRecord(
+                        log.getEventType(),
+                        log.getDose(),
+                        log.getUsedAt(),
+                        log.getInsulinType(),
+                        log.isTempBasalActive(),
+                        log.getTempBasalValue()
+                ))
+                .toList();
     }
 
     public Long countBloodSugarRecords(Long userId) {

@@ -72,6 +72,13 @@ public class OAuth2UserService {
         } else if (user.getUsername() == null || user.getUsername().isBlank()) {
             user.updateUsername(resolvedUsername);
         }
+
+        if (user.getBirthDate() == null && userInfo.getBirthDate() != null) {
+            user.updateBirthDate(userInfo.getBirthDate());
+        }
+        if (user.getGender() == null && userInfo.getGender() != null) {
+            user.updateGender(userInfo.getGender());
+        }
         
         user.updateLastLogin();
         return user;

@@ -28,7 +28,7 @@ public class GlucosePredictionController {
     private final UserRepository userRepository;
     private final HealthProfileGuardService healthProfileGuardService;
 
-    @Operation(summary = "식후 혈당 예측", description = "음식 섭취 후 시간대별 혈당 변화 예측 (+0/+30/+60/+120분)")
+    @Operation(summary = "식후 혈당 예측", description = "음식 섭취 후 시간대별 혈당 변화 예측")
     @PostMapping("/blood-sugar")
     public ResponseEntity<GlucosePredictionResponse> predictBloodSugar(
             @AuthenticationPrincipal UserIdPrincipal principal,
