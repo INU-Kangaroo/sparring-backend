@@ -50,7 +50,8 @@ REQUIRED_VARS=(
   MAIL_PASSWORD
   GEMINI_API_KEY
   GEMINI_API_URL
-  ML_SERVER_URL
+  ML_RECOMMEND_URL
+  ML_PREDICT_URL
 )
 for var in "${REQUIRED_VARS[@]}"; do
   if [ -z "${!var}" ]; then
