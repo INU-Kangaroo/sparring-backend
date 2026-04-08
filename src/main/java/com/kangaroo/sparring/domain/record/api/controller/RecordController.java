@@ -60,7 +60,7 @@ public class RecordController {
 
     @Operation(
             summary = "혈당 기록 등록",
-            description = "신규 경로: /api/records/blood-sugar. 기존 /api/measurements/blood-sugar/logs 경로는 삭제 예정입니다."
+            description = "혈당 기록 등록"
     )
     @PostMapping("/blood-sugar")
     public ResponseEntity<BloodSugarLogResponse> createBloodSugarRecord(
@@ -73,7 +73,7 @@ public class RecordController {
 
     @Operation(
             summary = "혈당 기록 조회",
-            description = "period(daily/weekly/monthly/range) 기준으로 혈당 기록 조회. 기존 /api/measurements/blood-sugar/logs 조회 경로는 삭제 예정입니다."
+            description = "period(daily/weekly/monthly/range) 기준으로 혈당 기록 조회"
     )
     @GetMapping("/blood-sugar")
     public ResponseEntity<List<BloodSugarLogResponse>> getBloodSugarRecords(
@@ -87,7 +87,7 @@ public class RecordController {
 
     @Operation(
             summary = "혈압 기록 등록",
-            description = "신규 경로: /api/records/blood-pressure. 기존 /api/measurements/blood-pressure/logs 경로는 삭제 예정입니다."
+            description = "혈압 기록 등록"
     )
     @PostMapping("/blood-pressure")
     public ResponseEntity<BloodPressureLogResponse> createBloodPressureRecord(
@@ -100,7 +100,7 @@ public class RecordController {
 
     @Operation(
             summary = "혈압 기록 조회",
-            description = "period(daily/weekly/monthly/range) 기준으로 혈압 기록 조회. 기존 /api/measurements/blood-pressure/logs 조회 경로는 삭제 예정입니다."
+            description = "period(daily/weekly/monthly/range) 기준으로 혈압 기록 조회"
     )
     @GetMapping("/blood-pressure")
     public ResponseEntity<List<BloodPressureLogResponse>> getBloodPressureRecords(
@@ -165,7 +165,7 @@ public class RecordController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "운동 기록 등록")
+    @Operation(summary = "운동 기록 등록", description = "운동 기록 등록")
     @PostMapping("/exercise")
     public ResponseEntity<ExerciseLogCreateResponse> createExerciseRecord(
             @AuthenticationPrincipal UserIdPrincipal principal,

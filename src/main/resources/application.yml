@@ -138,9 +138,12 @@ gemini:
 
 # ML Server Configuration
 ml:
-  server:
-    url: ${ML_SERVER_URL}
-    recommend-path: ${ML_RECOMMEND_PATH:/recommend}
+  recommendation:
+    url: ${ML_RECOMMEND_URL}
+    path: ${ML_RECOMMEND_PATH:/api/v1/recommendations}
+  prediction:
+    url: ${ML_PREDICT_URL}
+    path: ${ML_PREDICT_PATH:/predict-glucose}
 
 # Report Scoring Policy
 report:
