@@ -30,7 +30,8 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_API_URL=${GEMINI_API_URL}
-      - ML_SERVER_URL=${ML_SERVER_URL}
+      - ML_RECOMMEND_URL=${ML_RECOMMEND_URL}
+      - ML_PREDICT_URL=${ML_PREDICT_URL}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
       interval: 15s
