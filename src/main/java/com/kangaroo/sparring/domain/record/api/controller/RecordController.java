@@ -13,11 +13,16 @@ import com.kangaroo.sparring.domain.record.blood.dto.res.BloodSugarLogResponse;
 import com.kangaroo.sparring.domain.record.api.dto.req.RecordQueryRequest;
 import com.kangaroo.sparring.domain.record.insulin.dto.req.InsulinLogCreateRequest;
 import com.kangaroo.sparring.domain.record.insulin.dto.res.InsulinLogResponse;
+import com.kangaroo.sparring.domain.record.steps.dto.req.StepSyncRequest;
+import com.kangaroo.sparring.domain.record.steps.dto.res.StepDailyResponse;
+import com.kangaroo.sparring.domain.record.steps.dto.res.StepSyncResponse;
+import com.kangaroo.sparring.domain.record.steps.dto.res.StepTodayResponse;
 import com.kangaroo.sparring.domain.record.exercise.service.ExerciseLogService;
 import com.kangaroo.sparring.domain.record.food.service.FoodLogService;
 import com.kangaroo.sparring.domain.record.blood.service.BloodPressureService;
 import com.kangaroo.sparring.domain.record.blood.service.BloodSugarService;
 import com.kangaroo.sparring.domain.record.insulin.service.InsulinLogService;
+import com.kangaroo.sparring.domain.record.steps.service.StepLogService;
 import com.kangaroo.sparring.global.security.principal.PrincipalResolver;
 import com.kangaroo.sparring.global.security.principal.UserIdPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,6 +55,7 @@ public class RecordController {
     private final InsulinLogService insulinLogService;
     private final FoodLogService foodLogService;
     private final ExerciseLogService exerciseLogService;
+    private final StepLogService stepLogService;
     private final Clock kstClock;
 
     @Operation(
@@ -178,5 +184,35 @@ public class RecordController {
         Long userId = PrincipalResolver.resolveUserId(principal);
         var range = query.toRange(kstClock);
         return ResponseEntity.ok(exerciseLogService.getExerciseLogs(userId, range.start(), range.end()));
+    }
+
+    @Operation(summary = "걸음수 동기화", description = "소스(APPLE_HEALTH/GOOGLE_FIT/MANUAL)별 일자 걸음수 업서트")
+    @PostMapping("/steps/sync")
+    public ResponseEntity<StepSyncResponse> syncSteps(
+            @AuthenticationPrincipal UserIdPrincipal principal,
+            @Valid @RequestBody StepSyncRequest request
+    ) {
+        Long userId = PrincipalResolver.resolveUserId(principal);
+        return ResponseEntity.status(HttpStatus.CREATED).body(stepLogService.syncStepLog(userId, request));
+    }
+
+    @Operation(summary = "오늘 걸음수 조회", description = "KST 기준 오늘 총 걸음수 조회")
+    @GetMapping("/steps/today")
+    public ResponseEntity<StepTodayResponse> getTodaySteps(
+            @AuthenticationPrincipal UserIdPrincipal principal
+    ) {
+        Long userId = PrincipalResolver.resolveUserId(principal);
+        return ResponseEntity.ok(stepLogService.getTodaySteps(userId));
+    }
+
+    @Operation(summary = "걸음수 기록 조회", description = "period(daily/weekly/monthly/range) 기준 일자별 걸음수 합계 조회")
+    @GetMapping("/steps")
+    public ResponseEntity<List<StepDailyResponse>> getStepRecords(
+            @AuthenticationPrincipal UserIdPrincipal principal,
+            @ParameterObject RecordQueryRequest query
+    ) {
+        Long userId = PrincipalResolver.resolveUserId(principal);
+        var range = query.toRange(kstClock);
+        return ResponseEntity.ok(stepLogService.getStepLogs(userId, range.start(), range.end()));
     }
 }
