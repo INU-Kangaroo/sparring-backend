@@ -3,8 +3,8 @@ package com.kangaroo.sparring.domain.recommendation.controller;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.service.HealthProfileGuardService;
 import com.kangaroo.sparring.domain.healthprofile.service.HealthProfileService;
+import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.recommendation.dto.req.ExerciseRecommendationRequest;
-import com.kangaroo.sparring.domain.recommendation.dto.req.MealRecommendationRequest;
 import com.kangaroo.sparring.domain.recommendation.dto.res.ExerciseRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.MealRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementRecommendationResponse;
@@ -88,22 +88,49 @@ public class RecommendationController {
 
     @Operation(
             summary = "식단 추천 조회",
-            description = "혈당 상태와 오늘 섭취 기록을 기반으로 맞춤 식단 추천"
+            description = "캐시된 추천 반환. 없으면 FastAPI 호출 후 저장"
     )
     @PostMapping("/food")
     public ResponseEntity<MealRecommendationResponse> getMealRecommendations(
             @AuthenticationPrincipal UserIdPrincipal principal,
-            @Valid @RequestBody MealRecommendationRequest request
+            @RequestParam String mealType
     ) {
         Long userId = PrincipalResolver.resolveUserId(principal);
         healthProfileGuardService.ensureProfileComplete(userId);
+        MealTime resolvedMealType = resolveMealTypeParam(mealType);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         HealthProfile profile = healthProfileService.getOrCreateHealthProfile(userId);
 
-        return ResponseEntity.ok(
-                mealRecommendationService.recommend(user, profile, request.getMealTime(), request.getTopN())
-        );
+        return ResponseEntity.ok(mealRecommendationService.recommend(user, profile, resolvedMealType));
+    }
+
+    @Operation(
+            summary = "식단 추천 새로고침",
+            description = "캐시 무시하고 FastAPI 재호출 후 저장"
+    )
+    @PostMapping("/food/refresh")
+    public ResponseEntity<MealRecommendationResponse> refreshMealRecommendations(
+            @AuthenticationPrincipal UserIdPrincipal principal,
+            @RequestParam String mealType
+    ) {
+        Long userId = PrincipalResolver.resolveUserId(principal);
+        healthProfileGuardService.ensureProfileComplete(userId);
+        MealTime resolvedMealType = resolveMealTypeParam(mealType);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        HealthProfile profile = healthProfileService.getOrCreateHealthProfile(userId);
+
+        return ResponseEntity.ok(mealRecommendationService.refresh(user, profile, resolvedMealType));
+    }
+
+    private MealTime resolveMealTypeParam(String mealType) {
+        try {
+            return MealTime.from(mealType);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_INPUT, "mealType은 breakfast/lunch/dinner/snack 중 하나여야 합니다.");
+        }
     }
 }
