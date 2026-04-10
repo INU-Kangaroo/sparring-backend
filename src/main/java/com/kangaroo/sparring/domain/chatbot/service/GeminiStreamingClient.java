@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -53,8 +54,13 @@ public class GeminiStreamingClient {
      * SSE 형식(data: {...})으로 수신한 응답에서 텍스트를 추출한다.
      */
     public Flux<String> streamChat(List<ChatMessage> history, String userContextSummary) {
+        long startedAt = System.currentTimeMillis();
         String url = streamingUrl + "?key=" + apiKey + "&alt=sse";
         Map<String, Object> requestBody = buildRequestBody(history, userContextSummary);
+        AtomicInteger chunkCount = new AtomicInteger(0);
+        log.info("Gemini 스트리밍 호출 시작: messages={}, hasUserContext={}",
+                history == null ? 0 : history.size(),
+                userContextSummary != null && !userContextSummary.isBlank());
 
         return webClient.post()
                 .uri(url)
@@ -78,10 +84,16 @@ public class GeminiStreamingClient {
                 .map(String::trim)
                 .filter(data -> !data.isBlank() && !data.equals("[DONE]"))
                 .flatMap(this::extractTextChunk)
+                .doOnNext(chunk -> chunkCount.incrementAndGet())
+                .doOnComplete(() -> log.info("Gemini 스트리밍 호출 완료: chunks={}, elapsedMs={}",
+                        chunkCount.get(), System.currentTimeMillis() - startedAt))
+                .doOnCancel(() -> log.info("Gemini 스트리밍 호출 취소: chunks={}, elapsedMs={}",
+                        chunkCount.get(), System.currentTimeMillis() - startedAt))
                 .onErrorMap(
                         ex -> !(ex instanceof CustomException),
                         ex -> {
-                            log.error("Gemini 스트리밍 오류: {}", ex.getMessage(), ex);
+                            log.error("Gemini 스트리밍 오류: elapsedMs={}, message={}",
+                                    System.currentTimeMillis() - startedAt, ex.getMessage(), ex);
                             return new CustomException(ErrorCode.CHATBOT_AI_CALL_FAILED);
                         }
                 );

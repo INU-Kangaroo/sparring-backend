@@ -9,6 +9,7 @@ import com.kangaroo.sparring.domain.record.steps.service.StepLogService;
 import com.kangaroo.sparring.domain.user.dto.res.UserHomeCardResponse;
 import com.kangaroo.sparring.domain.user.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class HomeService {
@@ -38,6 +40,8 @@ public class HomeService {
     private final Clock kstClock;
 
     public MainHomeResponse getMainHome(Long userId) {
+        long startedAt = System.currentTimeMillis();
+        log.info("메인 홈 조회 시작: userId={}", userId);
         LocalDate today = LocalDate.now(kstClock);
         LocalDate startDate = today.minusDays(6);
         LocalDateTime start = startDate.atStartOfDay();
@@ -49,7 +53,7 @@ public class HomeService {
 
         var bloodSugarRecords = recordReadService.getBloodSugarRecords(userId, start, end);
 
-        return MainHomeResponse.builder()
+        MainHomeResponse response = MainHomeResponse.builder()
                 .profileCard(profileCard)
                 .todayInsight(MainHomeResponse.TodayInsight.builder()
                         .type(insight.getType())
@@ -62,6 +66,9 @@ public class HomeService {
                         .build())
                 .steps(steps)
                 .build();
+        log.info("메인 홈 조회 완료: userId={}, bloodSugarRecords={}, elapsedMs={}",
+                userId, bloodSugarRecords.size(), System.currentTimeMillis() - startedAt);
+        return response;
     }
 
     private List<MainHomeResponse.Point> buildDailyAveragePoints(

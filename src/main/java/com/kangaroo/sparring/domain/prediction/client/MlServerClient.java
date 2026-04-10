@@ -38,6 +38,10 @@ public class MlServerClient {
             String sex,
             MealPayload meal
     ) {
+        long startedAt = System.currentTimeMillis();
+        String endpoint = mlServerUrl + predictPath;
+        log.info("ML 혈당 예측 호출 시작: endpoint={}, mealType={}", endpoint, meal.getMealType());
+
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("baselineGlucose", baselineGlucose);
@@ -78,19 +82,24 @@ public class MlServerClient {
                 throw new CustomException(ErrorCode.AI_PREDICTION_FAILED, "peak 응답 필드가 누락되었습니다.");
             }
 
-            return PredictionResult.builder()
+            PredictionResult result = PredictionResult.builder()
                     .peakDelta(peakDelta)
                     .peakMinute(peakMinute)
                     .curve(curve)
                     .build();
+            log.info("ML 혈당 예측 호출 성공: endpoint={}, elapsedMs={}, curveSize={}, peakMinute={}",
+                    endpoint, System.currentTimeMillis() - startedAt, curve.size(), peakMinute);
+            return result;
         } catch (WebClientResponseException e) {
-            log.error("ML 서버 혈당 예측 HTTP 오류 status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            log.error("ML 서버 혈당 예측 HTTP 오류 endpoint={}, status={}, elapsedMs={}, body={}",
+                    endpoint, e.getStatusCode(), System.currentTimeMillis() - startedAt, e.getResponseBodyAsString(), e);
             throw new CustomException(
                     ErrorCode.AI_PREDICTION_FAILED,
                     "ML 서버 응답 오류(" + e.getStatusCode().value() + "): " + e.getResponseBodyAsString()
             );
         } catch (Exception e) {
-            log.error("ML 서버 혈당 예측 호출 실패", e);
+            log.error("ML 서버 혈당 예측 호출 실패 endpoint={}, elapsedMs={}",
+                    endpoint, System.currentTimeMillis() - startedAt, e);
             throw new CustomException(ErrorCode.AI_PREDICTION_FAILED, e.getMessage());
         }
     }

@@ -77,7 +77,7 @@ public class BloodPressureService {
     public List<BloodPressureLogResponse> getBloodPressureLogs(Long userId,
                                                                LocalDateTime startDate,
                                                                LocalDateTime endDate) {
-        log.info("혈압 측정 기록 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
+        log.debug("혈압 측정 기록 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
 
         MeasurementValidationSupport.validateDateRange(startDate, endDate);
 
@@ -90,7 +90,7 @@ public class BloodPressureService {
     }
 
     public List<BloodPressureLogResponse> getBloodPressureLogsByMonth(Long userId, int year, int month) {
-        log.info("월별 혈압 측정 기록 조회: userId={}, year={}, month={}", userId, year, month);
+        log.debug("월별 혈압 측정 기록 조회: userId={}, year={}, month={}", userId, year, month);
 
         MeasurementValidationSupport.validateMonthRange(month);
 
@@ -108,7 +108,7 @@ public class BloodPressureService {
     }
 
     public List<BloodPressureLogResponse> getBloodPressureLogsByDate(Long userId, LocalDate date) {
-        log.info("일별 혈압 측정 기록 조회: userId={}, date={}", userId, date);
+        log.debug("일별 혈압 측정 기록 조회: userId={}, date={}", userId, date);
         MeasurementValidationSupport.DateTimeRange range = MeasurementValidationSupport.toDateTimeRange(date);
 
         List<BloodPressureLog> logs = bloodPressureLogRepository
@@ -123,7 +123,7 @@ public class BloodPressureService {
     public List<BloodPressurePredictionResponse> getBloodPressurePredictions(Long userId,
                                                                              LocalDate startDate,
                                                                              LocalDate endDate) {
-        log.info("혈압 예측 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
+        log.debug("혈압 예측 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
 
         MeasurementValidationSupport.DateTimeRange range =
                 MeasurementValidationSupport.toDateTimeRange(startDate, endDate);
@@ -133,7 +133,7 @@ public class BloodPressureService {
                         userId, range.start(), range.end());
 
         if (predictions.isEmpty()) {
-            log.warn("혈압 예측 데이터 없음: userId={}", userId);
+            log.debug("혈압 예측 데이터 없음: userId={}", userId);
         }
 
         return predictions.stream()
@@ -142,7 +142,7 @@ public class BloodPressureService {
     }
 
     public List<MonthlyBloodPressureResponse> getMonthlyStatistics(Long userId, int year) {
-        log.info("월별 혈압 집계 조회: userId={}, year={}", userId, year);
+        log.debug("월별 혈압 집계 조회: userId={}, year={}", userId, year);
 
         MeasurementValidationSupport.DateTimeRange yearRange =
                 MeasurementValidationSupport.toYearDateTimeRange(year);
@@ -151,7 +151,7 @@ public class BloodPressureService {
                 .findMonthlyStatsByUserId(userId, yearRange.start(), yearRange.end());
 
         if (stats.isEmpty()) {
-            log.info("해당 연도 혈압 데이터 없음: userId={}, year={}", userId, year);
+            log.debug("해당 연도 혈압 데이터 없음: userId={}, year={}", userId, year);
             return new ArrayList<>();
         }
 
@@ -235,7 +235,7 @@ public class BloodPressureService {
     }
 
     private void requestPrediction(Long userId) {
-        log.info("AI 예측 요청: userId={}", userId);
+        log.debug("AI 예측 요청: userId={}", userId);
     }
 
     /**

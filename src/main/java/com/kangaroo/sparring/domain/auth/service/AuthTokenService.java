@@ -14,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.kangaroo.sparring.global.support.LogMaskingSupport.maskEmail;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -30,16 +32,18 @@ public class AuthTokenService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        log.info("로그인 시도: {}", request.getEmail());
+        log.debug("로그인 시도: {}", maskEmail(request.getEmail()));
 
         User user = userRepository.findByEmail(request.getEmail()).orElse(null);
         if (user == null) {
             // 존재하지 않는 계정도 동일한 비용의 검증을 수행해 계정 유무 추측을 어렵게 한다.
             passwordEncoder.matches(request.getPassword(), DUMMY_BCRYPT_HASH);
+            log.warn("로그인 실패: 계정 또는 비밀번호 불일치");
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            log.warn("로그인 실패: userId={}, 계정 또는 비밀번호 불일치", user.getId());
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
 
@@ -113,6 +117,7 @@ public class AuthTokenService {
 
     private void validateActiveUser(User user) {
         if (!user.getIsActive() || user.isDeleted()) {
+            log.warn("로그인 실패: 비활성 사용자 userId={}", user.getId());
             throw new CustomException(ErrorCode.INACTIVE_USER);
         }
     }

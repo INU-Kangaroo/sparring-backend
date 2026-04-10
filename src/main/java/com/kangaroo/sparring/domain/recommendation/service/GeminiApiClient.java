@@ -33,6 +33,10 @@ public class GeminiApiClient {
     private String apiUrl;
 
     public String generateContent(String prompt) {
+        long startedAt = System.currentTimeMillis();
+        int promptLength = prompt == null ? 0 : prompt.length();
+        log.info("Gemini API 호출 시작: endpoint={}, promptLength={}", apiUrl, promptLength);
+
         try {
             String url = apiUrl + "?key=" + apiKey;
 
@@ -51,24 +55,30 @@ public class GeminiApiClient {
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
             if (response.getStatusCode() == HttpStatus.OK) {
-                return extractTextFromResponse(response.getBody());
+                String text = extractTextFromResponse(response.getBody());
+                log.info("Gemini API 호출 성공: endpoint={}, elapsedMs={}, responseLength={}",
+                        apiUrl, System.currentTimeMillis() - startedAt, text.length());
+                return text;
             }
 
-            log.error("Gemini API 호출 실패: status={}", response.getStatusCode());
+            log.error("Gemini API 호출 실패: endpoint={}, status={}, elapsedMs={}",
+                    apiUrl, response.getStatusCode(), System.currentTimeMillis() - startedAt);
             throw new CustomException(ErrorCode.RECOMMENDATION_AI_CALL_FAILED);
         } catch (HttpClientErrorException.TooManyRequests e) {
-            log.error("Gemini API 호출 한도 초과: status={}, body={}",
-                    e.getStatusCode(), abbreviate(e.getResponseBodyAsString()));
+            log.error("Gemini API 호출 한도 초과: endpoint={}, status={}, elapsedMs={}, body={}",
+                    apiUrl, e.getStatusCode(), System.currentTimeMillis() - startedAt, abbreviate(e.getResponseBodyAsString()));
             throw new CustomException(ErrorCode.RECOMMENDATION_AI_RATE_LIMIT);
         } catch (HttpStatusCodeException e) {
-            log.error("Gemini API HTTP 오류: status={}, body={}",
-                    e.getStatusCode(), abbreviate(e.getResponseBodyAsString()));
+            log.error("Gemini API HTTP 오류: endpoint={}, status={}, elapsedMs={}, body={}",
+                    apiUrl, e.getStatusCode(), System.currentTimeMillis() - startedAt, abbreviate(e.getResponseBodyAsString()));
             throw new CustomException(ErrorCode.RECOMMENDATION_AI_CALL_FAILED);
         } catch (ResourceAccessException e) {
-            log.error("Gemini API 네트워크/타임아웃 오류: {}", e.getMessage());
+            log.error("Gemini API 네트워크/타임아웃 오류: endpoint={}, elapsedMs={}, message={}",
+                    apiUrl, System.currentTimeMillis() - startedAt, e.getMessage());
             throw new CustomException(ErrorCode.RECOMMENDATION_AI_CALL_FAILED);
         } catch (Exception e) {
-            log.error("Gemini API 호출 중 오류: ", e);
+            log.error("Gemini API 호출 중 오류: endpoint={}, elapsedMs={}",
+                    apiUrl, System.currentTimeMillis() - startedAt, e);
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

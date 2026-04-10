@@ -56,7 +56,7 @@ public class InsulinLogService {
     }
 
     public List<InsulinLogResponse> getInsulinLogs(Long userId, LocalDateTime startDate, LocalDateTime endDate) {
-        log.info("인슐린 기록 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
+        log.debug("인슐린 기록 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
         MeasurementValidationSupport.validateDateRange(startDate, endDate);
         return insulinLogRepository.findByUserIdAndDateRange(userId, startDate, endDate).stream()
                 .map(InsulinLogResponse::from)

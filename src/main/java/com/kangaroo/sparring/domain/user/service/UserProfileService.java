@@ -14,6 +14,7 @@ import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ import java.util.Set;
 import java.util.LinkedHashSet;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserProfileService {
@@ -40,12 +42,18 @@ public class UserProfileService {
     private final RecordReadService recordReadService;
 
     public UserProfileResponse getProfile(Long userId) {
+        long startedAt = System.currentTimeMillis();
+        log.info("사용자 프로필 조회 시작: userId={}", userId);
         User user = getUserOrThrow(userId);
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
-        return UserProfileResponse.of(user, profile);
+        UserProfileResponse response = UserProfileResponse.of(user, profile);
+        log.info("사용자 프로필 조회 완료: userId={}, elapsedMs={}", userId, System.currentTimeMillis() - startedAt);
+        return response;
     }
 
     public UserDashboardResponse getDashboard(Long userId) {
+        long startedAt = System.currentTimeMillis();
+        log.info("사용자 대시보드 조회 시작: userId={}", userId);
         User user = getUserOrThrow(userId);
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
 
@@ -59,7 +67,7 @@ public class UserProfileService {
         BigDecimal height = profile != null ? profile.getHeight() : null;
         BigDecimal weight = profile != null ? profile.getWeight() : null;
 
-        return UserDashboardResponse.builder()
+        UserDashboardResponse response = UserDashboardResponse.builder()
                 .profile(UserDashboardResponse.Profile.builder()
                         .username(user.getUsername())
                         .profileImageUrl(user.getProfileImageUrl())
@@ -78,9 +86,13 @@ public class UserProfileService {
                         .weight(weight)
                         .build())
                 .build();
+        log.info("사용자 대시보드 조회 완료: userId={}, totalCount={}, streak={}, elapsedMs={}",
+                userId, totalCount != null ? totalCount : 0L, streak, System.currentTimeMillis() - startedAt);
+        return response;
     }
 
     public UserHomeCardResponse getHomeCard(Long userId) {
+        long startedAt = System.currentTimeMillis();
         User user = getUserOrThrow(userId);
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
 
@@ -88,7 +100,7 @@ public class UserProfileService {
         Gender gender = profile != null && profile.getGender() != null ? profile.getGender() : user.getGender();
         List<UserHomeCardResponse.TagCandidate> tagCandidates = buildHomeTagCandidates(profile, birthDate, gender);
 
-        return UserHomeCardResponse.builder()
+        UserHomeCardResponse response = UserHomeCardResponse.builder()
                 .name(user.getUsername())
                 .profileImageUrl(user.getProfileImageUrl())
                 .displayDate(formatDisplayDate(LocalDate.now()))
@@ -98,10 +110,15 @@ public class UserProfileService {
                         .toList())
                 .tagCandidates(tagCandidates)
                 .build();
+        log.debug("홈 카드 조회 완료: userId={}, tagCandidates={}, elapsedMs={}",
+                userId, tagCandidates.size(), System.currentTimeMillis() - startedAt);
+        return response;
     }
 
     @Transactional
     public UserProfileResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
+        long startedAt = System.currentTimeMillis();
+        log.info("사용자 프로필 수정 시작: userId={}", userId);
         User user = getUserOrThrow(userId);
         HealthProfile profile = getOrCreateHealthProfile(user);
 
@@ -132,7 +149,9 @@ public class UserProfileService {
         );
 
         healthProfileRepository.save(profile);
-        return UserProfileResponse.of(user, profile);
+        UserProfileResponse response = UserProfileResponse.of(user, profile);
+        log.info("사용자 프로필 수정 완료: userId={}, elapsedMs={}", userId, System.currentTimeMillis() - startedAt);
+        return response;
     }
 
     private BigDecimal getLast7DaysAverage(Long userId) {

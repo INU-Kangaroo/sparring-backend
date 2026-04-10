@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.kangaroo.sparring.global.support.LogMaskingSupport.maskEmail;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class UserAccountService {
         User user = getUserOrThrow(userId);
         validateDuplicateEmail(email);
         user.updateEmail(email);
-        log.info("이메일 변경 완료: userId={}, email={}", userId, email);
+        log.info("이메일 변경 완료: userId={}, email={}", userId, maskEmail(email));
     }
 
     public String getEmailOrThrow(Long userId) {

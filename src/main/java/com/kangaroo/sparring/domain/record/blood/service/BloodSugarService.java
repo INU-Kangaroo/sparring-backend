@@ -72,7 +72,7 @@ public class BloodSugarService {
     }
 
     public List<BloodSugarLogResponse> getBloodSugarLogs(Long userId, LocalDateTime startDate, LocalDateTime endDate) {
-        log.info("혈당 측정 기록 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
+        log.debug("혈당 측정 기록 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
 
         MeasurementValidationSupport.validateDateRange(startDate, endDate);
 
@@ -84,7 +84,7 @@ public class BloodSugarService {
     }
 
     public List<BloodSugarLogResponse> getBloodSugarLogsByMonth(Long userId, int year, int month) {
-        log.info("월별 혈당 측정 기록 조회: userId={}, year={}, month={}", userId, year, month);
+        log.debug("월별 혈당 측정 기록 조회: userId={}, year={}, month={}", userId, year, month);
 
         // 월 유효성 검증
         MeasurementValidationSupport.validateMonthRange(month);
@@ -103,7 +103,7 @@ public class BloodSugarService {
     }
 
     public List<BloodSugarLogResponse> getBloodSugarLogsByDate(Long userId, LocalDate date) {
-        log.info("일별 혈당 측정 기록 조회: userId={}, date={}", userId, date);
+        log.debug("일별 혈당 측정 기록 조회: userId={}, date={}", userId, date);
         MeasurementValidationSupport.DateTimeRange range = MeasurementValidationSupport.toDateTimeRange(date);
 
         List<BloodSugarLog> logs = bloodSugarLogRepository
@@ -118,14 +118,14 @@ public class BloodSugarService {
     public List<BloodSugarPredictionResponse> getBloodSugarPredictions(Long userId,
                                                                        LocalDate startDate,
                                                                        LocalDate endDate) {
-        log.info("혈당 예측 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
+        log.debug("혈당 예측 조회: userId={}, startDate={}, endDate={}", userId, startDate, endDate);
         MeasurementValidationSupport.toDateTimeRange(startDate, endDate);
 
         List<BloodSugarPrediction> predictions =
                 bloodSugarPredictionRepository.findByUserIdAndDateRange(userId, startDate, endDate);
 
         if (predictions.isEmpty()) {
-            log.info("혈당 예측 데이터 없음: userId={}", userId);
+            log.debug("혈당 예측 데이터 없음: userId={}", userId);
         }
 
         return predictions.stream()
@@ -134,7 +134,7 @@ public class BloodSugarService {
     }
 
     public List<MonthlyBloodSugarResponse> getMonthlyStatistics(Long userId, int year) {
-        log.info("월별 혈당 집계 조회: userId={}, year={}", userId, year);
+        log.debug("월별 혈당 집계 조회: userId={}, year={}", userId, year);
 
         MeasurementValidationSupport.DateTimeRange yearRange =
                 MeasurementValidationSupport.toYearDateTimeRange(year);
@@ -143,7 +143,7 @@ public class BloodSugarService {
                 .findMonthlyStatsByUserId(userId, yearRange.start(), yearRange.end());
 
         if (stats.isEmpty()) {
-            log.info("해당 연도 혈당 데이터 없음: userId={}, year={}", userId, year);
+            log.debug("해당 연도 혈당 데이터 없음: userId={}, year={}", userId, year);
             return new ArrayList<>();
         }
 
@@ -185,7 +185,7 @@ public class BloodSugarService {
     }
 
     private void requestPrediction(Long userId) {
-        log.info("AI 예측 요청: userId={}", userId);
+        log.debug("AI 예측 요청: userId={}", userId);
     }
 
     /**
