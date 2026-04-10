@@ -45,7 +45,7 @@ public class ExerciseCandidateService {
 
         // 안전 필터: 고강도 제외
         ExerciseIntensity safeIntensity = (excludeHighIntensity && intensity == ExerciseIntensity.HIGH)
-                ? ExerciseIntensity.MEDIUM
+                ? ExerciseIntensity.MODERATE
                 : intensity;
 
         List<Exercise> candidates = new ArrayList<>();
