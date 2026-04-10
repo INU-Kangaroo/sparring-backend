@@ -48,8 +48,12 @@ public class InsightService {
         String prompt = insightPromptSupport.build(context, slot);
 
         String message;
+        long startedAt = System.currentTimeMillis();
+        log.info("Gemini 인사이트 생성 시작: userId={}, slot={}, type={}", userId, slot, context.getType());
         try {
             message = geminiApiClient.generateContent(prompt).strip();
+            log.info("Gemini 인사이트 생성 성공: userId={}, slot={}, type={}, elapsedMs={}",
+                    userId, slot, context.getType(), System.currentTimeMillis() - startedAt);
         } catch (Exception e) {
             log.warn("Gemini 인사이트 생성 실패, fallback 메시지 사용: userId={}", userId, e);
             message = getFallbackMessage(context.getType());

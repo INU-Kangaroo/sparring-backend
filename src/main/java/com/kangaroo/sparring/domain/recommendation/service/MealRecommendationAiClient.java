@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,20 +32,31 @@ public class MealRecommendationAiClient {
     private String recommendPath;
 
     public AiRecommendResult recommend(Map<String, Object> requestBody) {
+        long startedAt = System.currentTimeMillis();
+        String endpoint = serverUrl + recommendPath;
+        log.info("FastAPI 식단 추천 호출 시작: endpoint={}", endpoint);
+
         try {
             String responseBody = webClientBuilder.build()
                     .post()
-                    .uri(serverUrl + recommendPath)
+                    .uri(endpoint)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(objectMapper.writeValueAsString(requestBody))
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
 
-            return parseResponse(responseBody);
-
+            AiRecommendResult result = parseResponse(responseBody);
+            log.info("FastAPI 식단 추천 호출 성공: endpoint={}, elapsedMs={}, cards={}",
+                    endpoint, System.currentTimeMillis() - startedAt, result.cards().size());
+            return result;
+        } catch (WebClientResponseException e) {
+            log.error("FastAPI 식단 추천 HTTP 오류: endpoint={}, status={}, elapsedMs={}, body={}",
+                    endpoint, e.getStatusCode(), System.currentTimeMillis() - startedAt, e.getResponseBodyAsString(), e);
+            throw new CustomException(ErrorCode.AI_RECOMMENDATION_FAILED);
         } catch (Exception e) {
-            log.error("FastAPI 식단 추천 호출 실패", e);
+            log.error("FastAPI 식단 추천 호출 실패: endpoint={}, elapsedMs={}",
+                    endpoint, System.currentTimeMillis() - startedAt, e);
             throw new CustomException(ErrorCode.AI_RECOMMENDATION_FAILED);
         }
     }

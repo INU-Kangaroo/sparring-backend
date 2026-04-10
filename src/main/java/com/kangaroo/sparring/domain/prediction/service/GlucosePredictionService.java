@@ -10,12 +10,14 @@ import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -27,8 +29,10 @@ public class GlucosePredictionService {
     private final MlServerClient mlServerClient;
 
     public GlucosePredictionResponse predictGlucose(User user, GlucosePredictionRequest request) {
+        long startedAt = System.currentTimeMillis();
         List<BloodSugarRecord> recentLogs = recordReadService.getRecentBloodSugarRecords(user.getId(), GLUCOSE_HISTORY_COUNT);
         if (recentLogs.isEmpty()) {
+            log.warn("혈당 예측 실패: userId={}, reason=insufficient_data", user.getId());
             throw new CustomException(ErrorCode.INSUFFICIENT_DATA_FOR_PREDICTION);
         }
 
@@ -40,6 +44,7 @@ public class GlucosePredictionService {
         String sex = resolveSex(user.getGender());
 
         GlucosePredictionRequest.Meal meal = request.getMeal();
+        log.info("혈당 예측 요청 시작: userId={}, mealType={}", user.getId(), meal.getMealType());
         MlServerClient.PredictionResult mlResult = mlServerClient.predictGlucose(
                 baselineGlucose,
                 sex,
@@ -60,11 +65,15 @@ public class GlucosePredictionService {
                         .build())
                 .toList();
 
-        return GlucosePredictionResponse.builder()
+        GlucosePredictionResponse response = GlucosePredictionResponse.builder()
                 .peakGlucose(baselineGlucose + mlResult.getPeakDelta())
                 .peakMinute(mlResult.getPeakMinute())
                 .curve(curve)
                 .build();
+
+        log.info("혈당 예측 요청 완료: userId={}, peakMinute={}, curveSize={}, elapsedMs={}",
+                user.getId(), mlResult.getPeakMinute(), curve.size(), System.currentTimeMillis() - startedAt);
+        return response;
     }
 
     private String resolveSex(Gender gender) {

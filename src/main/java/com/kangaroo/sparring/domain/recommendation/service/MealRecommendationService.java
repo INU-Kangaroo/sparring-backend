@@ -70,16 +70,23 @@ public class MealRecommendationService {
      */
     @Transactional
     public MealRecommendationResponse refresh(User user, HealthProfile profile, MealTime mealTime) {
+        long startedAt = System.currentTimeMillis();
         LocalDate today = LocalDate.now(kstClock);
 
         List<BloodSugarRecord> recentBs = recordReadService.getRecentBloodSugarRecords(user.getId(), RECENT_BLOOD_SUGAR_COUNT);
         List<BloodPressureRecord> recentBp = recordReadService.getRecentBloodPressureRecords(user.getId(), RECENT_BLOOD_PRESSURE_COUNT);
         List<FoodRecord> recentFoods = recordReadService.getRecentFoodRecords(user.getId(), today.minusDays(3), today);
 
+        log.info("식단 추천 AI 요청 시작: userId={}, mealType={}, bloodSugarLogs={}, bloodPressureLogs={}, recentFoods={}",
+                user.getId(), mealTime.name(), recentBs.size(), recentBp.size(), recentFoods.size());
         Map<String, Object> requestBody = buildRequestBody(user, profile, mealTime, recentBs, recentBp, recentFoods);
         MealRecommendationAiClient.AiRecommendResult result = aiClient.recommend(requestBody);
+        log.info("식단 추천 AI 응답 수신: userId={}, mealType={}, cards={}",
+                user.getId(), mealTime.name(), result.cards() == null ? 0 : result.cards().size());
 
         MealRecommendation saved = saveRecommendation(user, mealTime, result);
+        log.info("식단 추천 저장 완료: userId={}, mealType={}, recommendationId={}, elapsedMs={}",
+                user.getId(), mealTime.name(), saved.getId(), System.currentTimeMillis() - startedAt);
         return toResponse(saved);
     }
 
