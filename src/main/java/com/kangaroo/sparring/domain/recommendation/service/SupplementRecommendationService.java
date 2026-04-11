@@ -44,19 +44,25 @@ public class SupplementRecommendationService {
     public SupplementRecommendationResponse getSupplementRecommendations(Long userId) {
         User user = recommendationContextService.getUser(userId);
         LocalDateTime cacheThreshold = LocalDateTime.now().minusHours(CACHE_HOURS);
-
         return recommendationRepository
                 .findCachedRecommendation(
                         user.getId(),
                         RecommendationType.SUPPLEMENT,
                         cacheThreshold
                 )
-                .map(this::buildSupplementRecommendationResponse)
-                .orElseGet(() -> generateNewSupplementRecommendations(user));
+                .map(cached -> {
+                    log.info("영양제 추천 캐시 반환: userId={}", user.getId());
+                    return buildSupplementRecommendationResponse(cached);
+                })
+                .orElseGet(() -> {
+                    log.info("영양제 추천 캐시 미스, 신규 생성: userId={}", user.getId());
+                    return generateNewSupplementRecommendations(user);
+                });
     }
 
     public SupplementRecommendationResponse refreshSupplementRecommendations(Long userId) {
         User user = recommendationContextService.getUser(userId);
+        log.info("영양제 추천 강제 새로고침 요청: userId={}", user.getId());
         return generateNewSupplementRecommendations(user);
     }
 

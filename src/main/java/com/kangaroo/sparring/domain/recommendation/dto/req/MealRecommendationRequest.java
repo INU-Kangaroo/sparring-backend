@@ -2,8 +2,6 @@ package com.kangaroo.sparring.domain.recommendation.dto.req;
 
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 
@@ -17,8 +15,4 @@ public class MealRecommendationRequest {
             example = "아침"
     )
     private MealTime mealTime;
-
-    @Min(1) @Max(50)
-    @Schema(description = "추천 개수 (1~50, 기본 10)", example = "10")
-    private int topN = 10;
 }

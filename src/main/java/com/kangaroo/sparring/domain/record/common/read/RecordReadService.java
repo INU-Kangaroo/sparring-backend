@@ -2,6 +2,7 @@ package com.kangaroo.sparring.domain.record.common.read;
 
 import com.kangaroo.sparring.domain.record.blood.repository.BloodPressureLogRepository;
 import com.kangaroo.sparring.domain.record.blood.repository.BloodSugarLogRepository;
+import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.record.exercise.repository.ExerciseLogRepository;
 import com.kangaroo.sparring.domain.record.food.repository.FoodLogRepository;
 import com.kangaroo.sparring.domain.record.insulin.repository.InsulinLogRepository;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
 
 @Service
@@ -82,6 +84,21 @@ public class RecordReadService {
         return bloodPressureLogRepository.findRecentByUserId(userId, PageRequest.of(0, count)).stream()
                 .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt()))
                 .toList();
+    }
+
+    public boolean hasBloodSugarInputChangedSince(Long userId, LocalDateTime since) {
+        return bloodSugarLogRepository.existsByUserIdAndUpdatedAtAfter(userId, since);
+    }
+
+    public boolean hasBloodPressureInputChangedSince(Long userId, LocalDateTime since) {
+        return bloodPressureLogRepository.existsByUserIdAndUpdatedAtAfter(userId, since);
+    }
+
+    public boolean hasFoodInputChangedSince(Long userId, Collection<MealTime> mealTimes, LocalDateTime since) {
+        if (mealTimes == null || mealTimes.isEmpty()) {
+            return false;
+        }
+        return foodLogRepository.existsByUserIdAndMealTimeInAndUpdatedAtAfter(userId, mealTimes, since);
     }
 
     public List<ExerciseRecord> getTodayExerciseRecords(Long userId, LocalDate today) {

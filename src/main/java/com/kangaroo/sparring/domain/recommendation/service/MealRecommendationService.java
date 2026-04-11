@@ -27,7 +27,9 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,9 @@ public class MealRecommendationService {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int RECENT_BLOOD_SUGAR_COUNT = 1;
     private static final int RECENT_BLOOD_PRESSURE_COUNT = 1;
+    private static final LocalTime BREAKFAST_END = LocalTime.of(11, 0);
+    private static final LocalTime LUNCH_END = LocalTime.of(15, 0);
+    private static final LocalTime DINNER_END = LocalTime.of(21, 0);
 
     private final RecordReadService recordReadService;
     private final MealRecommendationAiClient aiClient;
@@ -52,17 +57,91 @@ public class MealRecommendationService {
      */
     @Transactional
     public MealRecommendationResponse recommend(User user, HealthProfile profile, MealTime mealTime) {
+        LocalDate today = LocalDate.now(kstClock);
         var cached = mealRecommendationRepository
                 .findTopByUser_IdAndMealTypeOrderByRecommendedAtDesc(user.getId(), mealTime.name());
 
         if (cached.isPresent()) {
+            MealRecommendation cachedRecommendation = cached.get();
+            LocalDate cachedDate = cachedRecommendation.getRecommendedAt() != null
+                    ? cachedRecommendation.getRecommendedAt().toLocalDate()
+                    : null;
+            if (cachedDate == null || !cachedDate.isEqual(today)) {
+                log.info("식단 추천 캐시 만료(당일 아님), 신규 생성: userId={}, mealType={}, cachedDate={}, today={}",
+                        user.getId(), mealTime.name(), cachedDate, today);
+                return refresh(user, profile, mealTime);
+            }
+            if (isProfileChangedSinceRecommendation(profile, cachedRecommendation.getRecommendedAt())) {
+                log.info("식단 추천 캐시 무효화(프로필 변경): userId={}, mealType={}, recommendedAt={}, profileUpdatedAt={}",
+                        user.getId(), mealTime.name(), cachedRecommendation.getRecommendedAt(), profile.getUpdatedAt());
+                return refresh(user, profile, mealTime);
+            }
+            if (hasFoodInputChangedAffectingMealType(user.getId(), mealTime, cachedRecommendation.getRecommendedAt())) {
+                log.info("식단 추천 캐시 무효화(식사 로그 변경): userId={}, mealType={}, recommendedAt={}",
+                        user.getId(), mealTime.name(), cachedRecommendation.getRecommendedAt());
+                return refresh(user, profile, mealTime);
+            }
+            LocalDateTime now = LocalDateTime.now(kstClock);
+            if (isRemainingMealType(mealTime, now)
+                    && hasVitalsInputChangedSince(user.getId(), cachedRecommendation.getRecommendedAt())) {
+                log.info("식단 추천 캐시 무효화(혈당/혈압 로그 변경): userId={}, mealType={}, recommendedAt={}",
+                        user.getId(), mealTime.name(), cachedRecommendation.getRecommendedAt());
+                return refresh(user, profile, mealTime);
+            }
             try {
-                return toResponse(cached.get());
+                log.info("식단 추천 캐시 반환: userId={}, mealType={}", user.getId(), mealTime.name());
+                return toResponse(cachedRecommendation);
             } catch (Exception e) {
                 log.warn("식단 추천 캐시 변환 실패, 재생성 시도 userId={}, mealType={}", user.getId(), mealTime.name(), e);
             }
         }
+        log.info("식단 추천 캐시 미스, 신규 생성: userId={}, mealType={}", user.getId(), mealTime.name());
         return refresh(user, profile, mealTime);
+    }
+
+    private boolean isProfileChangedSinceRecommendation(HealthProfile profile, LocalDateTime recommendedAt) {
+        return profile != null
+                && profile.getUpdatedAt() != null
+                && recommendedAt != null
+                && profile.getUpdatedAt().isAfter(recommendedAt);
+    }
+
+    private boolean hasFoodInputChangedAffectingMealType(Long userId, MealTime mealTime, LocalDateTime recommendedAt) {
+        List<MealTime> affectingMealTimes = getAffectingFoodMealTimes(mealTime);
+        return recordReadService.hasFoodInputChangedSince(userId, affectingMealTimes, recommendedAt);
+    }
+
+    private boolean hasVitalsInputChangedSince(Long userId, LocalDateTime recommendedAt) {
+        return recordReadService.hasBloodSugarInputChangedSince(userId, recommendedAt)
+                || recordReadService.hasBloodPressureInputChangedSince(userId, recommendedAt);
+    }
+
+    private boolean isRemainingMealType(MealTime targetMealType, LocalDateTime now) {
+        MealTime currentMealSlot = resolveCurrentMealSlot(now.toLocalTime());
+        return targetMealType.ordinal() >= currentMealSlot.ordinal();
+    }
+
+    private MealTime resolveCurrentMealSlot(LocalTime now) {
+        if (now.isBefore(BREAKFAST_END)) {
+            return MealTime.BREAKFAST;
+        }
+        if (now.isBefore(LUNCH_END)) {
+            return MealTime.LUNCH;
+        }
+        if (now.isBefore(DINNER_END)) {
+            return MealTime.DINNER;
+        }
+        return MealTime.SNACK;
+    }
+
+    private List<MealTime> getAffectingFoodMealTimes(MealTime targetMealType) {
+        List<MealTime> affecting = new ArrayList<>();
+        for (MealTime mealTime : MealTime.values()) {
+            if (mealTime.ordinal() < targetMealType.ordinal()) {
+                affecting.add(mealTime);
+            }
+        }
+        return affecting;
     }
 
     /**
@@ -71,6 +150,7 @@ public class MealRecommendationService {
     @Transactional
     public MealRecommendationResponse refresh(User user, HealthProfile profile, MealTime mealTime) {
         long startedAt = System.currentTimeMillis();
+        log.info("식단 추천 강제 새로고침/생성 요청: userId={}, mealType={}", user.getId(), mealTime.name());
         LocalDate today = LocalDate.now(kstClock);
 
         List<BloodSugarRecord> recentBs = recordReadService.getRecentBloodSugarRecords(user.getId(), RECENT_BLOOD_SUGAR_COUNT);

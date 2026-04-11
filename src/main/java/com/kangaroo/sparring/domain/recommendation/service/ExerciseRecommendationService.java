@@ -54,7 +54,6 @@ public class ExerciseRecommendationService {
     public ExerciseRecommendationResponse getExerciseRecommendations(Long userId, ExerciseRecommendationRequest request) {
         User user = recommendationContextService.getUser(userId);
         LocalDateTime cacheThreshold = LocalDateTime.now().minusHours(CACHE_HOURS);
-
         return recommendationRepository
                 .findCachedExerciseRecommendation(
                         user.getId(),
@@ -64,12 +63,22 @@ public class ExerciseRecommendationService {
                         request.getLocation().name(),
                         cacheThreshold
                 )
-                .map(this::buildExerciseRecommendationResponse)
-                .orElseGet(() -> generateNewExerciseRecommendations(user, request));
+                .map(cached -> {
+                    log.info("운동 추천 캐시 반환: userId={}, duration={}, intensity={}, location={}",
+                            user.getId(), request.getDuration().name(), request.getIntensity().name(), request.getLocation().name());
+                    return buildExerciseRecommendationResponse(cached);
+                })
+                .orElseGet(() -> {
+                    log.info("운동 추천 캐시 미스, 신규 생성: userId={}, duration={}, intensity={}, location={}",
+                            user.getId(), request.getDuration().name(), request.getIntensity().name(), request.getLocation().name());
+                    return generateNewExerciseRecommendations(user, request);
+                });
     }
 
     public ExerciseRecommendationResponse refreshExerciseRecommendations(Long userId, ExerciseRecommendationRequest request) {
         User user = recommendationContextService.getUser(userId);
+        log.info("운동 추천 강제 새로고침 요청: userId={}, duration={}, intensity={}, location={}",
+                user.getId(), request.getDuration().name(), request.getIntensity().name(), request.getLocation().name());
         return generateNewExerciseRecommendations(user, request);
     }
 
