@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.chatbot.session;
+package com.kangaroo.sparring.domain.chatbot.entity;
 
 import com.kangaroo.sparring.domain.chatbot.type.MessageRole;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.recommendation.service;
+package com.kangaroo.sparring.domain.recommendation.service.support;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;

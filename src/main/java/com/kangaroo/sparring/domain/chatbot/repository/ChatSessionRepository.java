@@ -1,7 +1,8 @@
-package com.kangaroo.sparring.domain.chatbot.session;
+package com.kangaroo.sparring.domain.chatbot.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kangaroo.sparring.domain.chatbot.entity.ChatSession;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

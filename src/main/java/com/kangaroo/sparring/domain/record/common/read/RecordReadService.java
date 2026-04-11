@@ -6,6 +6,8 @@ import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.record.exercise.repository.ExerciseLogRepository;
 import com.kangaroo.sparring.domain.record.food.repository.FoodLogRepository;
 import com.kangaroo.sparring.domain.record.insulin.repository.InsulinLogRepository;
+import com.kangaroo.sparring.domain.record.steps.dto.res.StepDailyResponse;
+import com.kangaroo.sparring.domain.record.steps.repository.StepLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class RecordReadService {
     private final FoodLogRepository foodLogRepository;
     private final ExerciseLogRepository exerciseLogRepository;
     private final InsulinLogRepository insulinLogRepository;
+    private final StepLogRepository stepLogRepository;
 
     public List<BloodSugarRecord> getBloodSugarRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return bloodSugarLogRepository.findByUserIdAndDateRange(userId, start, end).stream()
@@ -66,6 +69,26 @@ public class RecordReadService {
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.atTime(LocalTime.MAX);
         return getFoodRecords(userId, start, end);
+    }
+
+    public int getStepsOnDate(Long userId, LocalDate date) {
+        Integer totalSteps = stepLogRepository.sumStepsByUserIdAndStepDate(userId, date);
+        return totalSteps != null ? totalSteps : 0;
+    }
+
+    public int getAverageDailySteps(Long userId, LocalDate from, LocalDate to) {
+        if (from == null || to == null || from.isAfter(to)) {
+            return 0;
+        }
+
+        List<StepDailyResponse> dailySteps = stepLogRepository.findDailyStepsByUserIdAndDateRange(userId, from, to);
+        double avg = dailySteps.stream()
+                .map(StepDailyResponse::getTotalSteps)
+                .filter(steps -> steps != null && steps > 0)
+                .mapToLong(Long::longValue)
+                .average()
+                .orElse(0.0);
+        return (int) Math.round(avg);
     }
 
     public List<ExerciseRecord> getExerciseRecords(Long userId, LocalDateTime start, LocalDateTime end) {

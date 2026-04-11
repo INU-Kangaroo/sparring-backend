@@ -3,7 +3,7 @@ package com.kangaroo.sparring.domain.insight.weekly.service;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.HighlightEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.ImprovementEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.ReportEvidence;
-import com.kangaroo.sparring.domain.recommendation.service.GeminiApiClient;
+import com.kangaroo.sparring.global.client.GeminiApiClient;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

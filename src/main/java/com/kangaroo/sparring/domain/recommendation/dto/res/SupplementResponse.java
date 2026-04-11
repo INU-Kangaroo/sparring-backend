@@ -9,7 +9,7 @@ import java.util.List;
 @Getter
 @Builder
 @Schema(description = "영양제 정보")
-public class SupplementDto {
+public class SupplementResponse {
 
     @Schema(description = "영양제명", example = "마그네슘")
     private String name;
@@ -32,9 +32,9 @@ public class SupplementDto {
     )
     private List<String> precautions;
 
-    public static SupplementDto of(String name, String dosage, String frequency,
+    public static SupplementResponse of(String name, String dosage, String frequency,
                                    List<String> benefits, List<String> precautions) {
-        return SupplementDto.builder()
+        return SupplementResponse.builder()
                 .name(name)
                 .dosage(dosage)
                 .frequency(frequency)

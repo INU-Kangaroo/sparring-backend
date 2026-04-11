@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.recommendation.service;
+package com.kangaroo.sparring.domain.recommendation.service.support;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;

@@ -1,7 +1,8 @@
-package com.kangaroo.sparring.domain.recommendation.service;
+package com.kangaroo.sparring.domain.recommendation.service.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kangaroo.sparring.domain.recommendation.dto.ml.MealRecommendationMlRequest;
+import com.kangaroo.sparring.domain.recommendation.dto.ml.MealRecommendationMlResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.MealRecommendationResponse;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
@@ -15,7 +16,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -31,7 +31,7 @@ public class MealRecommendationAiClient {
     @Value("${ml.recommendation.path:/api/v1/recommendations}")
     private String recommendPath;
 
-    public AiRecommendResult recommend(Map<String, Object> requestBody) {
+    public AiRecommendResult recommend(MealRecommendationMlRequest requestBody) {
         long startedAt = System.currentTimeMillis();
         String endpoint = serverUrl + recommendPath;
         log.info("FastAPI 식단 추천 호출 시작: endpoint={}", endpoint);
@@ -41,7 +41,7 @@ public class MealRecommendationAiClient {
                     .post()
                     .uri(endpoint)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(objectMapper.writeValueAsString(requestBody))
+                    .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
@@ -63,45 +63,39 @@ public class MealRecommendationAiClient {
 
     private AiRecommendResult parseResponse(String responseBody) {
         try {
-            JsonNode root = objectMapper.readTree(responseBody);
-
-            String mealType = root.path("meal_type").asText();
-            double mealTargetKcal = root.path("target").path("meal_target_kcal").asDouble(0);
+            MealRecommendationMlResponse response = objectMapper.readValue(responseBody, MealRecommendationMlResponse.class);
 
             List<MealRecommendationResponse.RecommendationCardDto> cards = new ArrayList<>();
-            root.path("recommendations").forEach(item -> {
-                List<String> reasons = new ArrayList<>();
-                item.path("reasons").forEach(r -> reasons.add(r.asText()));
-
+            response.recommendationsOrEmpty().forEach(item -> {
                 List<MealRecommendationResponse.MenuItemDto> menus = new ArrayList<>();
-                item.path("recipes").forEach(r -> {
+                item.recipesOrEmpty().forEach(r -> {
                     menus.add(MealRecommendationResponse.MenuItemDto.builder()
-                            .id(r.path("recipe_id").asLong())
-                            .name(r.path("recipe_name").asText())
-                            .kcal(r.path("kcal").asDouble(0))
-                            .carbs(r.path("carbs").asDouble(0))
-                            .protein(r.path("protein").asDouble(0))
-                            .fat(r.path("fat").asDouble(0))
-                            .sodium(r.path("sodium").isNull() ? null : r.path("sodium").asDouble())
+                            .id(r.recipeIdOrZero())
+                            .name(r.recipeNameOrEmpty())
+                            .kcal(r.kcalOrZero())
+                            .carbs(r.carbsOrZero())
+                            .protein(r.proteinOrZero())
+                            .fat(r.fatOrZero())
+                            .sodium(r.sodium())
                             .build());
                 });
 
                 cards.add(MealRecommendationResponse.RecommendationCardDto.builder()
-                        .rank(item.path("rank").asInt())
-                        .title(item.path("set_title").asText())
+                        .rank(item.rankOrZero())
+                        .title(item.titleOrEmpty())
                         .nutrients(MealRecommendationResponse.NutrientsDto.builder()
-                                .kcal(item.path("total_kcal").asDouble(0))
-                                .carbs(item.path("total_carbs").asDouble(0))
-                                .protein(item.path("total_protein").asDouble(0))
-                                .fat(item.path("total_fat").asDouble(0))
-                                .sodium(item.path("total_sodium").isNull() ? null : item.path("total_sodium").asDouble())
+                                .kcal(item.totalKcalOrZero())
+                                .carbs(item.totalCarbsOrZero())
+                                .protein(item.totalProteinOrZero())
+                                .fat(item.totalFatOrZero())
+                                .sodium(item.totalSodium())
                                 .build())
-                        .reasons(reasons)
+                        .reasons(item.reasonsOrEmpty())
                         .menus(menus)
                         .build());
             });
 
-            return new AiRecommendResult(mealType, mealTargetKcal, cards);
+            return new AiRecommendResult(response.mealType(), response.mealTargetKcalOrZero(), cards);
 
         } catch (Exception e) {
             log.error("FastAPI 응답 파싱 실패: {}", responseBody, e);

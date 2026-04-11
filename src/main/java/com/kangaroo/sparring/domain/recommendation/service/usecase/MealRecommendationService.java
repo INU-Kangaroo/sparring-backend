@@ -1,21 +1,21 @@
-package com.kangaroo.sparring.domain.recommendation.service;
+package com.kangaroo.sparring.domain.recommendation.service.usecase;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
+import com.kangaroo.sparring.domain.recommendation.dto.ml.MealRecommendationMlRequest;
 import com.kangaroo.sparring.domain.recommendation.dto.res.MealRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendation;
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendationItem;
 import com.kangaroo.sparring.domain.recommendation.repository.MealRecommendationRepository;
+import com.kangaroo.sparring.domain.recommendation.service.client.MealRecommendationAiClient;
+import com.kangaroo.sparring.domain.recommendation.service.support.MealRecommendationMlRequestFactory;
 import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
 import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
 import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
 import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
-import com.kangaroo.sparring.domain.survey.type.BloodPressureStatus;
-import com.kangaroo.sparring.domain.survey.type.BloodSugarStatus;
 import com.kangaroo.sparring.domain.user.entity.User;
-import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -28,11 +28,8 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.Period;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -49,6 +46,7 @@ public class MealRecommendationService {
 
     private final RecordReadService recordReadService;
     private final MealRecommendationAiClient aiClient;
+    private final MealRecommendationMlRequestFactory mlRequestFactory;
     private final MealRecommendationRepository mealRecommendationRepository;
     private final Clock kstClock;
 
@@ -58,45 +56,93 @@ public class MealRecommendationService {
     @Transactional
     public MealRecommendationResponse recommend(User user, HealthProfile profile, MealTime mealTime) {
         LocalDate today = LocalDate.now(kstClock);
-        var cached = mealRecommendationRepository
-                .findTopByUser_IdAndMealTypeOrderByRecommendedAtDesc(user.getId(), mealTime.name());
+        LocalDateTime now = LocalDateTime.now(kstClock);
 
-        if (cached.isPresent()) {
-            MealRecommendation cachedRecommendation = cached.get();
-            LocalDate cachedDate = cachedRecommendation.getRecommendedAt() != null
-                    ? cachedRecommendation.getRecommendedAt().toLocalDate()
-                    : null;
-            if (cachedDate == null || !cachedDate.isEqual(today)) {
+        return mealRecommendationRepository
+                .findTopByUser_IdAndMealTypeOrderByRecommendedAtDesc(user.getId(), mealTime.name())
+                .map(cachedRecommendation -> toCachedResponseOrRefresh(
+                        user, profile, mealTime, today, now, cachedRecommendation
+                ))
+                .orElseGet(() -> {
+                    log.info("식단 추천 캐시 미스, 신규 생성: userId={}, mealType={}", user.getId(), mealTime.name());
+                    return refresh(user, profile, mealTime);
+                });
+    }
+
+    private MealRecommendationResponse toCachedResponseOrRefresh(
+            User user,
+            HealthProfile profile,
+            MealTime mealTime,
+            LocalDate today,
+            LocalDateTime now,
+            MealRecommendation cachedRecommendation
+    ) {
+        CacheInvalidationReason invalidationReason = resolveCacheInvalidationReason(
+                user.getId(), profile, mealTime, today, now, cachedRecommendation
+        );
+        if (invalidationReason != CacheInvalidationReason.NONE) {
+            logCacheInvalidation(invalidationReason, user, profile, mealTime, today, cachedRecommendation);
+            return refresh(user, profile, mealTime);
+        }
+
+        try {
+            log.info("식단 추천 캐시 반환: userId={}, mealType={}", user.getId(), mealTime.name());
+            return toResponse(cachedRecommendation);
+        } catch (Exception e) {
+            log.warn("식단 추천 캐시 변환 실패, 재생성 시도 userId={}, mealType={}", user.getId(), mealTime.name(), e);
+            return refresh(user, profile, mealTime);
+        }
+    }
+
+    private CacheInvalidationReason resolveCacheInvalidationReason(
+            Long userId,
+            HealthProfile profile,
+            MealTime mealTime,
+            LocalDate today,
+            LocalDateTime now,
+            MealRecommendation cachedRecommendation
+    ) {
+        LocalDateTime recommendedAt = cachedRecommendation.getRecommendedAt();
+        LocalDate cachedDate = recommendedAt != null ? recommendedAt.toLocalDate() : null;
+        if (cachedDate == null || !cachedDate.isEqual(today)) {
+            return CacheInvalidationReason.EXPIRED_DATE;
+        }
+        if (isProfileChangedSinceRecommendation(profile, recommendedAt)) {
+            return CacheInvalidationReason.PROFILE_CHANGED;
+        }
+        if (hasFoodInputChangedAffectingMealType(userId, mealTime, recommendedAt)) {
+            return CacheInvalidationReason.FOOD_INPUT_CHANGED;
+        }
+        if (isRemainingMealType(mealTime, now) && hasVitalsInputChangedSince(userId, recommendedAt)) {
+            return CacheInvalidationReason.VITALS_INPUT_CHANGED;
+        }
+        return CacheInvalidationReason.NONE;
+    }
+
+    private void logCacheInvalidation(
+            CacheInvalidationReason reason,
+            User user,
+            HealthProfile profile,
+            MealTime mealTime,
+            LocalDate today,
+            MealRecommendation cachedRecommendation
+    ) {
+        LocalDateTime recommendedAt = cachedRecommendation.getRecommendedAt();
+        switch (reason) {
+            case EXPIRED_DATE -> {
+                LocalDate cachedDate = recommendedAt != null ? recommendedAt.toLocalDate() : null;
                 log.info("식단 추천 캐시 만료(당일 아님), 신규 생성: userId={}, mealType={}, cachedDate={}, today={}",
                         user.getId(), mealTime.name(), cachedDate, today);
-                return refresh(user, profile, mealTime);
             }
-            if (isProfileChangedSinceRecommendation(profile, cachedRecommendation.getRecommendedAt())) {
-                log.info("식단 추천 캐시 무효화(프로필 변경): userId={}, mealType={}, recommendedAt={}, profileUpdatedAt={}",
-                        user.getId(), mealTime.name(), cachedRecommendation.getRecommendedAt(), profile.getUpdatedAt());
-                return refresh(user, profile, mealTime);
-            }
-            if (hasFoodInputChangedAffectingMealType(user.getId(), mealTime, cachedRecommendation.getRecommendedAt())) {
-                log.info("식단 추천 캐시 무효화(식사 로그 변경): userId={}, mealType={}, recommendedAt={}",
-                        user.getId(), mealTime.name(), cachedRecommendation.getRecommendedAt());
-                return refresh(user, profile, mealTime);
-            }
-            LocalDateTime now = LocalDateTime.now(kstClock);
-            if (isRemainingMealType(mealTime, now)
-                    && hasVitalsInputChangedSince(user.getId(), cachedRecommendation.getRecommendedAt())) {
-                log.info("식단 추천 캐시 무효화(혈당/혈압 로그 변경): userId={}, mealType={}, recommendedAt={}",
-                        user.getId(), mealTime.name(), cachedRecommendation.getRecommendedAt());
-                return refresh(user, profile, mealTime);
-            }
-            try {
-                log.info("식단 추천 캐시 반환: userId={}, mealType={}", user.getId(), mealTime.name());
-                return toResponse(cachedRecommendation);
-            } catch (Exception e) {
-                log.warn("식단 추천 캐시 변환 실패, 재생성 시도 userId={}, mealType={}", user.getId(), mealTime.name(), e);
+            case PROFILE_CHANGED -> log.info("식단 추천 캐시 무효화(프로필 변경): userId={}, mealType={}, recommendedAt={}, profileUpdatedAt={}",
+                    user.getId(), mealTime.name(), recommendedAt, profile != null ? profile.getUpdatedAt() : null);
+            case FOOD_INPUT_CHANGED -> log.info("식단 추천 캐시 무효화(식사 로그 변경): userId={}, mealType={}, recommendedAt={}",
+                    user.getId(), mealTime.name(), recommendedAt);
+            case VITALS_INPUT_CHANGED -> log.info("식단 추천 캐시 무효화(혈당/혈압 로그 변경): userId={}, mealType={}, recommendedAt={}",
+                    user.getId(), mealTime.name(), recommendedAt);
+            case NONE -> {
             }
         }
-        log.info("식단 추천 캐시 미스, 신규 생성: userId={}, mealType={}", user.getId(), mealTime.name());
-        return refresh(user, profile, mealTime);
     }
 
     private boolean isProfileChangedSinceRecommendation(HealthProfile profile, LocalDateTime recommendedAt) {
@@ -135,13 +181,9 @@ public class MealRecommendationService {
     }
 
     private List<MealTime> getAffectingFoodMealTimes(MealTime targetMealType) {
-        List<MealTime> affecting = new ArrayList<>();
-        for (MealTime mealTime : MealTime.values()) {
-            if (mealTime.ordinal() < targetMealType.ordinal()) {
-                affecting.add(mealTime);
-            }
-        }
-        return affecting;
+        return Arrays.stream(MealTime.values())
+                .filter(mealTime -> mealTime.ordinal() < targetMealType.ordinal())
+                .toList();
     }
 
     /**
@@ -159,7 +201,7 @@ public class MealRecommendationService {
 
         log.info("식단 추천 AI 요청 시작: userId={}, mealType={}, bloodSugarLogs={}, bloodPressureLogs={}, recentFoods={}",
                 user.getId(), mealTime.name(), recentBs.size(), recentBp.size(), recentFoods.size());
-        Map<String, Object> requestBody = buildRequestBody(user, profile, mealTime, recentBs, recentBp, recentFoods);
+        MealRecommendationMlRequest requestBody = mlRequestFactory.create(user, profile, mealTime, recentBs, recentBp, recentFoods);
         MealRecommendationAiClient.AiRecommendResult result = aiClient.recommend(requestBody);
         log.info("식단 추천 AI 응답 수신: userId={}, mealType={}, cards={}",
                 user.getId(), mealTime.name(), result.cards() == null ? 0 : result.cards().size());
@@ -259,77 +301,12 @@ public class MealRecommendationService {
                 .build();
     }
 
-    private Map<String, Object> buildRequestBody(
-            User user, HealthProfile profile, MealTime mealTime,
-            List<BloodSugarRecord> bsLogs, List<BloodPressureRecord> bpLogs, List<FoodRecord> recentFoods
-    ) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("user_id", user.getId());
-        body.put("meal_type", mealTime.name());
-
-        Map<String, Object> hp = new HashMap<>();
-        hp.put("sex", resolveSex(profile.getGender()));
-        hp.put("age", resolveAge(profile));
-        hp.put("height_cm", profile.getHeight() != null ? profile.getHeight().doubleValue() : 170.0);
-        hp.put("weight_kg", profile.getWeight() != null ? profile.getWeight().doubleValue() : 65.0);
-        hp.put("activity_level", "MODERATE");
-        hp.put("blood_sugar_status", resolveBloodSugarStatus(profile.getBloodSugarStatus()));
-        hp.put("blood_pressure_status", resolveBloodPressureStatus(profile.getBloodPressureStatus()));
-        hp.put("has_dyslipidemia", false);
-        body.put("health_profile", hp);
-
-        if (!bsLogs.isEmpty()) {
-            Map<String, Object> preGlucose = new HashMap<>();
-            preGlucose.put("value_mg_dl", (double) bsLogs.get(0).getGlucoseLevel());
-            preGlucose.put("minutes_before_meal", 30);
-            body.put("pre_glucose", preGlucose);
-        }
-
-        if (!bpLogs.isEmpty()) {
-            Map<String, Object> bp = new HashMap<>();
-            bp.put("systolic", bpLogs.get(0).getSystolic());
-            bp.put("diastolic", bpLogs.get(0).getDiastolic());
-            body.put("latest_blood_pressure", bp);
-        }
-
-        List<String> recentFoodNames = recentFoods.stream()
-                .map(FoodRecord::getFoodName)
-                .filter(n -> n != null && !n.isBlank())
-                .distinct()
-                .limit(10)
-                .toList();
-        body.put("recent_foods", recentFoodNames);
-
-        return body;
+    private enum CacheInvalidationReason {
+        NONE,
+        EXPIRED_DATE,
+        PROFILE_CHANGED,
+        FOOD_INPUT_CHANGED,
+        VITALS_INPUT_CHANGED
     }
 
-    private String resolveBloodSugarStatus(BloodSugarStatus status) {
-        if (status == null) return "NORMAL";
-        return switch (status) {
-            case TYPE1, TYPE2 -> "DIABETIC";
-            case BORDERLINE -> "PRE_DIABETIC";
-            default -> "NORMAL";
-        };
-    }
-
-    private String resolveSex(Gender gender) {
-        if (gender == null) {
-            throw new CustomException(ErrorCode.INVALID_INPUT, "성별 정보가 필요합니다.");
-        }
-        return gender == Gender.MALE ? "MALE" : "FEMALE";
-    }
-
-    private String resolveBloodPressureStatus(BloodPressureStatus status) {
-        if (status == null) return "NORMAL";
-        return switch (status) {
-            case STAGE1, STAGE2 -> "HYPERTENSION";
-            case BORDERLINE -> "PRE_HYPERTENSION";
-            default -> "NORMAL";
-        };
-    }
-
-    private int resolveAge(HealthProfile profile) {
-        if (profile.getBirthDate() == null) return 30;
-        return Math.max(0, Period.between(profile.getBirthDate(), LocalDate.now(kstClock)).getYears());
-    }
 }

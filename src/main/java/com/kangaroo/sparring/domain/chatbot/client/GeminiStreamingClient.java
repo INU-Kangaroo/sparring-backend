@@ -1,8 +1,8 @@
-package com.kangaroo.sparring.domain.chatbot.service;
+package com.kangaroo.sparring.domain.chatbot.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kangaroo.sparring.domain.chatbot.session.ChatMessage;
+import com.kangaroo.sparring.domain.chatbot.entity.ChatMessage;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;

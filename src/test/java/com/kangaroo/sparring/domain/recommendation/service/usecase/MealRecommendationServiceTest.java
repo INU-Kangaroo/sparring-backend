@@ -1,15 +1,19 @@
-package com.kangaroo.sparring.domain.recommendation.service;
+package com.kangaroo.sparring.domain.recommendation.service.usecase;
 
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
+import com.kangaroo.sparring.domain.recommendation.dto.ml.MealRecommendationMlRequest;
 import com.kangaroo.sparring.domain.recommendation.dto.res.MealRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendation;
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendationItem;
 import com.kangaroo.sparring.domain.recommendation.repository.MealRecommendationRepository;
+import com.kangaroo.sparring.domain.recommendation.service.client.MealRecommendationAiClient;
+import com.kangaroo.sparring.domain.recommendation.service.support.MealRecommendationMlRequestFactory;
 import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.global.exception.CustomException;
+import com.kangaroo.sparring.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -23,7 +27,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,6 +49,8 @@ class MealRecommendationServiceTest {
     @Mock
     private MealRecommendationAiClient aiClient;
     @Mock
+    private MealRecommendationMlRequestFactory mlRequestFactory;
+    @Mock
     private MealRecommendationRepository mealRecommendationRepository;
     @Mock
     private Clock kstClock;
@@ -54,17 +59,19 @@ class MealRecommendationServiceTest {
     private MealRecommendationService mealRecommendationService;
 
     @Test
-    void refresh_요청시_성별이_health_profile_sex에_반영된다() {
+    void refresh_요청시_생성된_요청DTO를_AI클라이언트로_전달한다() {
         User user = User.builder().id(1L).build();
         HealthProfile profile = HealthProfile.builder()
                 .gender(Gender.MALE)
                 .build();
+        MealRecommendationMlRequest mlRequest = sampleMlRequest(user.getId(), "LUNCH", "MALE");
 
         when(kstClock.instant()).thenReturn(Instant.parse("2026-04-09T00:00:00Z"));
         when(kstClock.getZone()).thenReturn(ZoneId.of("Asia/Seoul"));
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any())).thenReturn(mlRequest);
         when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
                 "LUNCH",
                 500.0,
@@ -74,10 +81,9 @@ class MealRecommendationServiceTest {
 
         MealRecommendationResponse response = mealRecommendationService.refresh(user, profile, MealTime.LUNCH);
 
-        ArgumentCaptor<Map<String, Object>> requestCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<MealRecommendationMlRequest> requestCaptor = ArgumentCaptor.forClass(MealRecommendationMlRequest.class);
         verify(aiClient).recommend(requestCaptor.capture());
-        Map<String, Object> healthProfile = (Map<String, Object>) requestCaptor.getValue().get("health_profile");
-        assertThat(healthProfile.get("sex")).isEqualTo("MALE");
+        assertThat(requestCaptor.getValue()).isEqualTo(mlRequest);
         assertThat(response.getMealType()).isEqualTo("LUNCH");
         assertThat(response.getRecommendations()).hasSize(1);
     }
@@ -94,6 +100,8 @@ class MealRecommendationServiceTest {
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new CustomException(ErrorCode.INVALID_INPUT, "성별 정보가 필요합니다."));
         when(mealRecommendationRepository.findTopByUser_IdAndMealTypeOrderByRecommendedAtDesc(anyLong(), anyString()))
                 .thenReturn(Optional.empty());
 
@@ -115,6 +123,8 @@ class MealRecommendationServiceTest {
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(sampleMlRequest(user.getId(), "LUNCH", "FEMALE"));
         when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
                 "LUNCH",
                 500.0,
@@ -141,6 +151,8 @@ class MealRecommendationServiceTest {
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(sampleMlRequest(user.getId(), "LUNCH", "FEMALE"));
         when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
                 "LUNCH",
                 500.0,
@@ -172,6 +184,8 @@ class MealRecommendationServiceTest {
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(sampleMlRequest(user.getId(), "LUNCH", "FEMALE"));
         when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
                 "LUNCH",
                 500.0,
@@ -232,6 +246,18 @@ class MealRecommendationServiceTest {
                                 .build()
                 ))
                 .build();
+    }
+
+    private MealRecommendationMlRequest sampleMlRequest(Long userId, String mealType, String sex) {
+        return new MealRecommendationMlRequest(
+                userId,
+                mealType,
+                new MealRecommendationMlRequest.HealthProfile(sex, 30, 170.0, 65.0,
+                        "MODERATE", "NORMAL", "NORMAL", false),
+                null,
+                null,
+                List.of()
+        );
     }
 
     private MealRecommendation brokenCachedRecommendation(User user) {
