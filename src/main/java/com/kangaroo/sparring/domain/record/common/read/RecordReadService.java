@@ -39,7 +39,7 @@ public class RecordReadService {
 
     public List<BloodPressureRecord> getBloodPressureRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return bloodPressureLogRepository.findByUserIdAndDateRange(userId, start, end).stream()
-                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt()))
+                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt(), log.getMeasurementLabel()))
                 .toList();
     }
 
@@ -105,7 +105,7 @@ public class RecordReadService {
 
     public List<BloodPressureRecord> getRecentBloodPressureRecords(Long userId, int count) {
         return bloodPressureLogRepository.findRecentByUserId(userId, PageRequest.of(0, count)).stream()
-                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt()))
+                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt(), log.getMeasurementLabel()))
                 .toList();
     }
 

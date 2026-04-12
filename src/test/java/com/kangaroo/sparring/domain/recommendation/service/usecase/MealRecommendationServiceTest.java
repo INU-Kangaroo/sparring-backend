@@ -250,12 +250,18 @@ class MealRecommendationServiceTest {
 
     private MealRecommendationMlRequest sampleMlRequest(Long userId, String mealType, String sex) {
         return new MealRecommendationMlRequest(
+                "req-test",
+                "rec-v4",
                 userId,
                 mealType,
+                4,
                 new MealRecommendationMlRequest.HealthProfile(sex, 30, 170.0, 65.0,
-                        "MODERATE", "NORMAL", "NORMAL", false),
+                        "MODERATE", false, false),
                 null,
-                null,
+                new MealRecommendationMlRequest.Nutrition(
+                        new MealRecommendationMlRequest.ConsumedToday(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                ),
+                new MealRecommendationMlRequest.Preferences(List.of(), List.of(), List.of(), List.of()),
                 List.of()
         );
     }

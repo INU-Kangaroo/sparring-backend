@@ -38,8 +38,8 @@ import java.util.List;
 public class MealRecommendationService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final int RECENT_BLOOD_SUGAR_COUNT = 1;
-    private static final int RECENT_BLOOD_PRESSURE_COUNT = 1;
+    private static final int RECENT_BLOOD_SUGAR_COUNT = 20;
+    private static final int RECENT_BLOOD_PRESSURE_COUNT = 20;
     private static final LocalTime BREAKFAST_END = LocalTime.of(11, 0);
     private static final LocalTime LUNCH_END = LocalTime.of(15, 0);
     private static final LocalTime DINNER_END = LocalTime.of(21, 0);
