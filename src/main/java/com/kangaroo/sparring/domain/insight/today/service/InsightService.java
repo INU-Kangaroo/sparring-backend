@@ -4,7 +4,7 @@ import com.kangaroo.sparring.domain.insight.today.dto.res.TodayInsightResponse;
 import com.kangaroo.sparring.domain.insight.today.service.InsightContextBuilder.InsightContext;
 import com.kangaroo.sparring.domain.insight.today.type.InsightType;
 import com.kangaroo.sparring.domain.insight.today.type.MealTimeSlot;
-import com.kangaroo.sparring.domain.recommendation.service.GeminiApiClient;
+import com.kangaroo.sparring.global.client.GeminiApiClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

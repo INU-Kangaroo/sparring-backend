@@ -1,15 +1,19 @@
-package com.kangaroo.sparring.domain.recommendation.service;
+package com.kangaroo.sparring.domain.recommendation.service.usecase;
 
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
+import com.kangaroo.sparring.domain.recommendation.dto.ml.MealRecommendationMlRequest;
 import com.kangaroo.sparring.domain.recommendation.dto.res.MealRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendation;
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendationItem;
 import com.kangaroo.sparring.domain.recommendation.repository.MealRecommendationRepository;
+import com.kangaroo.sparring.domain.recommendation.service.client.MealRecommendationAiClient;
+import com.kangaroo.sparring.domain.recommendation.service.support.MealRecommendationMlRequestFactory;
 import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.type.Gender;
 import com.kangaroo.sparring.global.exception.CustomException;
+import com.kangaroo.sparring.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -23,7 +27,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +49,8 @@ class MealRecommendationServiceTest {
     @Mock
     private MealRecommendationAiClient aiClient;
     @Mock
+    private MealRecommendationMlRequestFactory mlRequestFactory;
+    @Mock
     private MealRecommendationRepository mealRecommendationRepository;
     @Mock
     private Clock kstClock;
@@ -53,17 +59,19 @@ class MealRecommendationServiceTest {
     private MealRecommendationService mealRecommendationService;
 
     @Test
-    void refresh_요청시_성별이_health_profile_sex에_반영된다() {
+    void refresh_요청시_생성된_요청DTO를_AI클라이언트로_전달한다() {
         User user = User.builder().id(1L).build();
         HealthProfile profile = HealthProfile.builder()
                 .gender(Gender.MALE)
                 .build();
+        MealRecommendationMlRequest mlRequest = sampleMlRequest(user.getId(), "LUNCH", "MALE");
 
         when(kstClock.instant()).thenReturn(Instant.parse("2026-04-09T00:00:00Z"));
         when(kstClock.getZone()).thenReturn(ZoneId.of("Asia/Seoul"));
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any())).thenReturn(mlRequest);
         when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
                 "LUNCH",
                 500.0,
@@ -73,10 +81,9 @@ class MealRecommendationServiceTest {
 
         MealRecommendationResponse response = mealRecommendationService.refresh(user, profile, MealTime.LUNCH);
 
-        ArgumentCaptor<Map<String, Object>> requestCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<MealRecommendationMlRequest> requestCaptor = ArgumentCaptor.forClass(MealRecommendationMlRequest.class);
         verify(aiClient).recommend(requestCaptor.capture());
-        Map<String, Object> healthProfile = (Map<String, Object>) requestCaptor.getValue().get("health_profile");
-        assertThat(healthProfile.get("sex")).isEqualTo("MALE");
+        assertThat(requestCaptor.getValue()).isEqualTo(mlRequest);
         assertThat(response.getMealType()).isEqualTo("LUNCH");
         assertThat(response.getRecommendations()).hasSize(1);
     }
@@ -93,6 +100,8 @@ class MealRecommendationServiceTest {
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new CustomException(ErrorCode.INVALID_INPUT, "성별 정보가 필요합니다."));
         when(mealRecommendationRepository.findTopByUser_IdAndMealTypeOrderByRecommendedAtDesc(anyLong(), anyString()))
                 .thenReturn(Optional.empty());
 
@@ -114,6 +123,8 @@ class MealRecommendationServiceTest {
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(sampleMlRequest(user.getId(), "LUNCH", "FEMALE"));
         when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
                 "LUNCH",
                 500.0,
@@ -140,6 +151,8 @@ class MealRecommendationServiceTest {
         when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
         when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(sampleMlRequest(user.getId(), "LUNCH", "FEMALE"));
         when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
                 "LUNCH",
                 500.0,
@@ -150,6 +163,62 @@ class MealRecommendationServiceTest {
         MealRecommendationResponse response = mealRecommendationService.recommend(user, profile, MealTime.LUNCH);
 
         verify(aiClient, times(1)).recommend(any());
+        assertThat(response.getRecommendations()).hasSize(1);
+    }
+
+    @Test
+    void recommend_요청시_당일_신규로그가_있으면_캐시를_무효화하고_refresh한다() {
+        User user = User.builder().id(1L).build();
+        HealthProfile profile = HealthProfile.builder()
+                .gender(Gender.FEMALE)
+                .build();
+
+        MealRecommendation cached = validCachedRecommendation(user);
+        when(mealRecommendationRepository.findTopByUser_IdAndMealTypeOrderByRecommendedAtDesc(1L, "LUNCH"))
+                .thenReturn(Optional.of(cached));
+        when(recordReadService.hasBloodSugarInputChangedSince(eq(1L), eq(cached.getRecommendedAt())))
+                .thenReturn(true);
+
+        when(kstClock.instant()).thenReturn(Instant.parse("2026-04-09T00:00:00Z"));
+        when(kstClock.getZone()).thenReturn(ZoneId.of("Asia/Seoul"));
+        when(recordReadService.getRecentBloodSugarRecords(anyLong(), anyInt())).thenReturn(List.of());
+        when(recordReadService.getRecentBloodPressureRecords(anyLong(), anyInt())).thenReturn(List.of());
+        when(recordReadService.getRecentFoodRecords(anyLong(), any(), any())).thenReturn(List.of());
+        when(mlRequestFactory.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(sampleMlRequest(user.getId(), "LUNCH", "FEMALE"));
+        when(aiClient.recommend(any())).thenReturn(new MealRecommendationAiClient.AiRecommendResult(
+                "LUNCH",
+                500.0,
+                List.of(validCard())
+        ));
+        when(mealRecommendationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MealRecommendationResponse response = mealRecommendationService.recommend(user, profile, MealTime.LUNCH);
+
+        verify(recordReadService).hasBloodSugarInputChangedSince(1L, cached.getRecommendedAt());
+        verify(aiClient, times(1)).recommend(any());
+        assertThat(response.getRecommendations()).hasSize(1);
+    }
+
+    @Test
+    void recommend_요청시_지나간_끼니는_혈당혈압_변경으로_무효화하지_않는다() {
+        User user = User.builder().id(1L).build();
+        HealthProfile profile = HealthProfile.builder()
+                .gender(Gender.FEMALE)
+                .build();
+
+        MealRecommendation cached = validCachedRecommendation(user, "BREAKFAST", LocalDateTime.of(2026, 4, 9, 8, 0));
+        when(mealRecommendationRepository.findTopByUser_IdAndMealTypeOrderByRecommendedAtDesc(1L, "BREAKFAST"))
+                .thenReturn(Optional.of(cached));
+
+        when(kstClock.instant()).thenReturn(Instant.parse("2026-04-09T03:30:00Z")); // 12:30 KST
+        when(kstClock.getZone()).thenReturn(ZoneId.of("Asia/Seoul"));
+
+        MealRecommendationResponse response = mealRecommendationService.recommend(user, profile, MealTime.BREAKFAST);
+
+        verify(recordReadService, never()).hasBloodSugarInputChangedSince(anyLong(), any());
+        verify(recordReadService, never()).hasBloodPressureInputChangedSince(anyLong(), any());
+        verify(aiClient, never()).recommend(any());
         assertThat(response.getRecommendations()).hasSize(1);
     }
 
@@ -179,6 +248,24 @@ class MealRecommendationServiceTest {
                 .build();
     }
 
+    private MealRecommendationMlRequest sampleMlRequest(Long userId, String mealType, String sex) {
+        return new MealRecommendationMlRequest(
+                "req-test",
+                "rec-v4",
+                userId,
+                mealType,
+                4,
+                new MealRecommendationMlRequest.HealthProfile(sex, 30, 170.0, 65.0,
+                        "MODERATE", false, false),
+                null,
+                new MealRecommendationMlRequest.Nutrition(
+                        new MealRecommendationMlRequest.ConsumedToday(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                ),
+                new MealRecommendationMlRequest.Preferences(List.of(), List.of(), List.of(), List.of()),
+                List.of()
+        );
+    }
+
     private MealRecommendation brokenCachedRecommendation(User user) {
         MealRecommendation rec = MealRecommendation.builder()
                 .user(user)
@@ -199,6 +286,35 @@ class MealRecommendationServiceTest {
                 .totalSodium(BigDecimal.valueOf(600))
                 .reasonsJson("not-json")
                 .menusJson("not-json")
+                .build();
+        rec.getItems().add(item);
+        return rec;
+    }
+
+    private MealRecommendation validCachedRecommendation(User user) {
+        return validCachedRecommendation(user, "LUNCH", LocalDateTime.of(2026, 4, 9, 10, 0));
+    }
+
+    private MealRecommendation validCachedRecommendation(User user, String mealType, LocalDateTime recommendedAt) {
+        MealRecommendation rec = MealRecommendation.builder()
+                .user(user)
+                .mealType(mealType)
+                .mealTargetKcal(BigDecimal.valueOf(500))
+                .recommendedAt(recommendedAt)
+                .items(new java.util.ArrayList<>())
+                .build();
+
+        MealRecommendationItem item = MealRecommendationItem.builder()
+                .mealRecommendation(rec)
+                .rankOrder(1)
+                .title("정상카드")
+                .totalKcal(BigDecimal.valueOf(500))
+                .totalCarbs(BigDecimal.valueOf(50))
+                .totalProtein(BigDecimal.valueOf(30))
+                .totalFat(BigDecimal.valueOf(10))
+                .totalSodium(BigDecimal.valueOf(600))
+                .reasonsJson("[\"이유\"]")
+                .menusJson("[{\"id\":1,\"name\":\"현미밥\",\"kcal\":200.0,\"carbs\":40.0,\"protein\":4.0,\"fat\":2.0,\"sodium\":20.0}]")
                 .build();
         rec.getItems().add(item);
         return rec;

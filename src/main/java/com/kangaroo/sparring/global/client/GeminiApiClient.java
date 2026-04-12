@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.recommendation.service;
+package com.kangaroo.sparring.global.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

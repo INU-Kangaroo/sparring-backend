@@ -2,9 +2,12 @@ package com.kangaroo.sparring.domain.record.common.read;
 
 import com.kangaroo.sparring.domain.record.blood.repository.BloodPressureLogRepository;
 import com.kangaroo.sparring.domain.record.blood.repository.BloodSugarLogRepository;
+import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.record.exercise.repository.ExerciseLogRepository;
 import com.kangaroo.sparring.domain.record.food.repository.FoodLogRepository;
 import com.kangaroo.sparring.domain.record.insulin.repository.InsulinLogRepository;
+import com.kangaroo.sparring.domain.record.steps.dto.res.StepDailyResponse;
+import com.kangaroo.sparring.domain.record.steps.repository.StepLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -13,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
 
 @Service
@@ -25,6 +29,7 @@ public class RecordReadService {
     private final FoodLogRepository foodLogRepository;
     private final ExerciseLogRepository exerciseLogRepository;
     private final InsulinLogRepository insulinLogRepository;
+    private final StepLogRepository stepLogRepository;
 
     public List<BloodSugarRecord> getBloodSugarRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return bloodSugarLogRepository.findByUserIdAndDateRange(userId, start, end).stream()
@@ -34,7 +39,7 @@ public class RecordReadService {
 
     public List<BloodPressureRecord> getBloodPressureRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return bloodPressureLogRepository.findByUserIdAndDateRange(userId, start, end).stream()
-                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt()))
+                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt(), log.getMeasurementLabel()))
                 .toList();
     }
 
@@ -66,6 +71,26 @@ public class RecordReadService {
         return getFoodRecords(userId, start, end);
     }
 
+    public int getStepsOnDate(Long userId, LocalDate date) {
+        Integer totalSteps = stepLogRepository.sumStepsByUserIdAndStepDate(userId, date);
+        return totalSteps != null ? totalSteps : 0;
+    }
+
+    public int getAverageDailySteps(Long userId, LocalDate from, LocalDate to) {
+        if (from == null || to == null || from.isAfter(to)) {
+            return 0;
+        }
+
+        List<StepDailyResponse> dailySteps = stepLogRepository.findDailyStepsByUserIdAndDateRange(userId, from, to);
+        double avg = dailySteps.stream()
+                .map(StepDailyResponse::getTotalSteps)
+                .filter(steps -> steps != null && steps > 0)
+                .mapToLong(Long::longValue)
+                .average()
+                .orElse(0.0);
+        return (int) Math.round(avg);
+    }
+
     public List<ExerciseRecord> getExerciseRecords(Long userId, LocalDateTime start, LocalDateTime end) {
         return exerciseLogRepository.findByUserIdAndLoggedAtBetweenAndIsDeletedFalseOrderByLoggedAtDesc(userId, start, end).stream()
                 .map(log -> new ExerciseRecord(log.getLoggedAt(), log.getMetValue()))
@@ -80,8 +105,23 @@ public class RecordReadService {
 
     public List<BloodPressureRecord> getRecentBloodPressureRecords(Long userId, int count) {
         return bloodPressureLogRepository.findRecentByUserId(userId, PageRequest.of(0, count)).stream()
-                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt()))
+                .map(log -> new BloodPressureRecord(log.getSystolic(), log.getDiastolic(), log.getMeasuredAt(), log.getMeasurementLabel()))
                 .toList();
+    }
+
+    public boolean hasBloodSugarInputChangedSince(Long userId, LocalDateTime since) {
+        return bloodSugarLogRepository.existsByUserIdAndUpdatedAtAfter(userId, since);
+    }
+
+    public boolean hasBloodPressureInputChangedSince(Long userId, LocalDateTime since) {
+        return bloodPressureLogRepository.existsByUserIdAndUpdatedAtAfter(userId, since);
+    }
+
+    public boolean hasFoodInputChangedSince(Long userId, Collection<MealTime> mealTimes, LocalDateTime since) {
+        if (mealTimes == null || mealTimes.isEmpty()) {
+            return false;
+        }
+        return foodLogRepository.existsByUserIdAndMealTimeInAndUpdatedAtAfter(userId, mealTimes, since);
     }
 
     public List<ExerciseRecord> getTodayExerciseRecords(Long userId, LocalDate today) {

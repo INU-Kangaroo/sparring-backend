@@ -8,9 +8,9 @@ import com.kangaroo.sparring.domain.recommendation.dto.req.ExerciseRecommendatio
 import com.kangaroo.sparring.domain.recommendation.dto.res.ExerciseRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.MealRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementRecommendationResponse;
-import com.kangaroo.sparring.domain.recommendation.service.ExerciseRecommendationService;
-import com.kangaroo.sparring.domain.recommendation.service.MealRecommendationService;
-import com.kangaroo.sparring.domain.recommendation.service.SupplementRecommendationService;
+import com.kangaroo.sparring.domain.recommendation.service.usecase.ExerciseRecommendationService;
+import com.kangaroo.sparring.domain.recommendation.service.usecase.MealRecommendationService;
+import com.kangaroo.sparring.domain.recommendation.service.usecase.SupplementRecommendationService;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
 import com.kangaroo.sparring.global.exception.CustomException;
