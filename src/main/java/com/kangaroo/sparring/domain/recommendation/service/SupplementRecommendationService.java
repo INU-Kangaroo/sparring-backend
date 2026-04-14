@@ -1,23 +1,20 @@
-package com.kangaroo.sparring.domain.recommendation.service.usecase;
+package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.service.HealthProfileService;
-import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
-import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementRecommendationResponse;
 import com.kangaroo.sparring.domain.recommendation.entity.SupplementRecommendation;
 import com.kangaroo.sparring.domain.recommendation.entity.Recommendation;
 import com.kangaroo.sparring.domain.recommendation.repository.SupplementRecommendationRepository;
 import com.kangaroo.sparring.domain.recommendation.repository.RecommendationRepository;
-import com.kangaroo.sparring.domain.recommendation.service.client.SupplementRecommendationAiClient;
-import com.kangaroo.sparring.domain.recommendation.service.support.RecommendationJsonMappingSupport;
-import com.kangaroo.sparring.domain.recommendation.service.support.RecommendationPromptSupport;
-import com.kangaroo.sparring.domain.recommendation.service.support.RecommendationPromptTemplateService;
 import com.kangaroo.sparring.domain.recommendation.type.RecommendationType;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -44,12 +41,13 @@ public class SupplementRecommendationService {
     private final RecommendationPromptTemplateService promptTemplateService;
     private final RecommendationJsonMappingSupport jsonMappingSupport;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final HealthProfileService healthProfileService;
     private final RecordReadService recordReadService;
     private final Clock kstClock;
 
     public SupplementRecommendationResponse getSupplementRecommendations(Long userId) {
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         LocalDateTime cacheThreshold = LocalDateTime.now(kstClock).minusHours(CACHE_HOURS);
         return recommendationRepository
                 .findCachedRecommendation(
@@ -68,7 +66,7 @@ public class SupplementRecommendationService {
     }
 
     public SupplementRecommendationResponse refreshSupplementRecommendations(Long userId) {
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         log.info("영양제 추천 강제 새로고침 요청: userId={}", user.getId());
         return generateNewSupplementRecommendations(user);
     }
@@ -97,7 +95,7 @@ public class SupplementRecommendationService {
     private String buildSupplementPrompt(HealthProfile healthProfile,
                                          List<BloodSugarRecord> bloodSugars,
                                          List<BloodPressureRecord> bloodPressures) {
-        String userHealthInfo = RecommendationPromptSupport.buildUserHealthInfo(healthProfile, bloodSugars, bloodPressures);
+        String userHealthInfo = promptTemplateService.buildUserHealthInfo(healthProfile, bloodSugars, bloodPressures);
         return promptTemplateService.renderSupplementPrompt(Map.of(
                 "USER_HEALTH_INFO", userHealthInfo
         ));
@@ -134,10 +132,5 @@ public class SupplementRecommendationService {
                 .toList();
 
         return SupplementRecommendationResponse.of(supplementDtos);
-    }
-
-    private User getUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }

@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.record.common.read;
+package com.kangaroo.sparring.domain.record.common;
 
 import java.time.LocalDateTime;
 

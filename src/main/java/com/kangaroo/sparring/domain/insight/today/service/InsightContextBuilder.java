@@ -1,10 +1,10 @@
 package com.kangaroo.sparring.domain.insight.today.service;
 
 import com.kangaroo.sparring.domain.insight.today.type.InsightType;
-import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
-import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
-import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.FoodRecord;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

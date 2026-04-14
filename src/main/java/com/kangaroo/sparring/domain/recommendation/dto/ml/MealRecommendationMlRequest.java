@@ -15,7 +15,8 @@ public record MealRecommendationMlRequest(
         @JsonProperty("observations") Observations observations,
         @JsonProperty("nutrition") Nutrition nutrition,
         @JsonProperty("preferences") Preferences preferences,
-        @JsonProperty("recentFoods") List<String> recentFoods
+        @JsonProperty("recentFoods") List<String> recentFoods,
+        @JsonProperty("refreshNonce") String refreshNonce
 ) {
     public record HealthProfile(
             @JsonProperty("sex") String sex,

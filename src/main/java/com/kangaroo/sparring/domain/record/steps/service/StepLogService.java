@@ -8,6 +8,7 @@ import com.kangaroo.sparring.domain.record.steps.entity.StepLog;
 import com.kangaroo.sparring.domain.record.steps.repository.StepLogRepository;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class StepLogService {
 
     private final StepLogRepository stepLogRepository;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
 
     @Qualifier("kstClock")
     private final Clock kstClock;
@@ -38,7 +40,7 @@ public class StepLogService {
         long startedAt = System.currentTimeMillis();
         log.info("걸음수 동기화 시작: userId={}, stepDate={}, source={}, steps={}",
                 userId, request.getStepDate(), request.getSource(), request.getSteps());
-        User user = findUser(userId);
+        User user = userLookupService.getUserOrThrow(userId);
 
         LocalDate today = LocalDate.now(kstClock);
         if (request.getStepDate().isAfter(today)) {
@@ -98,10 +100,5 @@ public class StepLogService {
         log.debug("걸음수 기간 조회 완료: userId={}, start={}, end={}, days={}, elapsedMs={}",
                 userId, start, end, logs.size(), System.currentTimeMillis() - startedAt);
         return logs;
-    }
-
-    private User findUser(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }

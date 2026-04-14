@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.record.common.support;
+package com.kangaroo.sparring.domain.record.common;
 
 import com.kangaroo.sparring.domain.record.common.type.RecordPeriod;
 import com.kangaroo.sparring.global.exception.CustomException;

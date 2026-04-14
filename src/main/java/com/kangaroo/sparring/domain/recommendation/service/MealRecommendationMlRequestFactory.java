@@ -1,13 +1,13 @@
-package com.kangaroo.sparring.domain.recommendation.service.support;
+package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.common.type.MealTime;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.recommendation.dto.ml.MealRecommendationMlRequest;
-import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
-import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
-import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
+import com.kangaroo.sparring.domain.record.common.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.FoodRecord;
 import com.kangaroo.sparring.domain.survey.type.BloodPressureStatus;
 import com.kangaroo.sparring.domain.survey.type.ExerciseFrequency;
 import com.kangaroo.sparring.domain.user.entity.User;
@@ -24,6 +24,7 @@ import java.time.Period;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -41,6 +42,18 @@ public class MealRecommendationMlRequestFactory {
             List<BloodSugarRecord> bloodSugarRecords,
             List<BloodPressureRecord> bloodPressureRecords,
             List<FoodRecord> recentFoods
+    ) {
+        return create(user, profile, mealTime, bloodSugarRecords, bloodPressureRecords, recentFoods, false);
+    }
+
+    public MealRecommendationMlRequest create(
+            User user,
+            HealthProfile profile,
+            MealTime mealTime,
+            List<BloodSugarRecord> bloodSugarRecords,
+            List<BloodPressureRecord> bloodPressureRecords,
+            List<FoodRecord> recentFoods,
+            boolean forceRefreshNonce
     ) {
         MealRecommendationMlRequest.HealthProfile healthProfile = new MealRecommendationMlRequest.HealthProfile(
                 resolveSex(profile.getGender()),
@@ -75,7 +88,8 @@ public class MealRecommendationMlRequestFactory {
                 observations,
                 nutrition,
                 preferences,
-                recentFoodNames
+                recentFoodNames,
+                forceRefreshNonce ? buildRefreshNonce(user.getId(), mealTime) : null
         );
     }
 
@@ -264,6 +278,10 @@ public class MealRecommendationMlRequestFactory {
 
     private String buildRequestId(Long userId, MealTime mealTime) {
         return "req_" + userId + "_" + mealTime.name() + "_" + System.currentTimeMillis();
+    }
+
+    private String buildRefreshNonce(Long userId, MealTime mealTime) {
+        return "refresh_" + userId + "_" + mealTime.name() + "_" + UUID.randomUUID();
     }
 
     private String formatDateTime(LocalDateTime dateTime) {

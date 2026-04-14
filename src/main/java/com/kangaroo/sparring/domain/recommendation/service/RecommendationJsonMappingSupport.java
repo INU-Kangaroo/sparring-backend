@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.recommendation.service.support;
+package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

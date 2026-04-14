@@ -10,7 +10,7 @@ import com.kangaroo.sparring.domain.survey.dto.res.SurveySubmitResponse;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.service.HealthProfileService;
-import com.kangaroo.sparring.domain.healthprofile.support.HealthProfileFieldSupport;
+import com.kangaroo.sparring.domain.healthprofile.HealthProfileFieldSupport;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
 import com.kangaroo.sparring.domain.survey.entity.*;
 import com.kangaroo.sparring.domain.survey.repository.AnswerRepository;
@@ -18,6 +18,7 @@ import com.kangaroo.sparring.domain.survey.repository.QuestionRepository;
 import com.kangaroo.sparring.domain.survey.repository.SurveyRepository;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class SurveyService {
     private final AnswerRepository answerRepository;
     private final HealthProfileRepository healthProfileRepository;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final SurveyAnswerValidator surveyAnswerValidator;
     private final HealthProfileService healthProfileService;
 
@@ -95,8 +97,7 @@ public class SurveyService {
         surveyAnswerValidator.validateSubmittedAnswers(request.getAnswers(), questionMap);
 
         // User 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User user = userLookupService.getUserOrThrow(userId);
 
         // 답변 저장
         List<Answer> answers = request.getAnswers().stream()

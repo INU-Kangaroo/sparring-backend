@@ -3,7 +3,7 @@ package com.kangaroo.sparring.domain.home.service;
 import com.kangaroo.sparring.domain.home.dto.res.MainHomeResponse;
 import com.kangaroo.sparring.domain.insight.today.dto.res.TodayInsightResponse;
 import com.kangaroo.sparring.domain.insight.today.service.InsightService;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import com.kangaroo.sparring.domain.record.steps.dto.res.StepTodayResponse;
 import com.kangaroo.sparring.domain.record.steps.service.StepLogService;
 import com.kangaroo.sparring.domain.user.dto.res.UserHomeCardResponse;
@@ -74,7 +74,7 @@ public class HomeService {
     private List<MainHomeResponse.Point> buildDailyAveragePoints(
             LocalDate startDate,
             LocalDate endDate,
-            List<com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord> records
+            List<com.kangaroo.sparring.domain.record.common.BloodSugarRecord> records
     ) {
         Map<LocalDate, List<Integer>> dailyValues = new LinkedHashMap<>();
         LocalDate cursor = startDate;

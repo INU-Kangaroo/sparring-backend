@@ -1,10 +1,10 @@
 package com.kangaroo.sparring.domain.insight.weekly.service;
 
-import com.kangaroo.sparring.domain.record.common.read.ExerciseRecord;
-import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
-import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
-import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.ExerciseRecord;
+import com.kangaroo.sparring.domain.record.common.FoodRecord;
+import com.kangaroo.sparring.domain.record.common.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.DailyConditionEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.HighlightEvidence;
 import com.kangaroo.sparring.domain.insight.weekly.dto.internal.ImprovementEvidence;
@@ -19,6 +19,7 @@ import com.kangaroo.sparring.domain.insight.weekly.repository.ReportRepository;
 import com.kangaroo.sparring.domain.insight.weekly.type.ImprovementCategory;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,7 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final ReportPersistenceService reportPersistenceService;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final RecordReadService recordReadService;
     private final ReportGeminiService reportGeminiService;
     private final ReportRuleEngine reportRuleEngine;
@@ -141,8 +143,7 @@ public class ReportService {
 
     private GeneratedReport generateReport(Long userId, LocalDate monday, LocalDate sunday) {
         long startedAt = System.currentTimeMillis();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User user = userLookupService.getUserOrThrow(userId);
 
         WeeklyLogs logs = fetchWeeklyLogs(userId, monday, sunday);
         validateWeeklyLogs(logs);

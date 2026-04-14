@@ -2,8 +2,8 @@ package com.kangaroo.sparring.domain.user.service;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
-import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import com.kangaroo.sparring.domain.user.dto.req.UpdateUserProfileRequest;
 import com.kangaroo.sparring.domain.user.dto.res.UserDashboardResponse;
 import com.kangaroo.sparring.domain.user.dto.res.UserHomeCardResponse;
@@ -38,13 +38,14 @@ import java.util.LinkedHashSet;
 public class UserProfileService {
 
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final HealthProfileRepository healthProfileRepository;
     private final RecordReadService recordReadService;
 
     public UserProfileResponse getProfile(Long userId) {
         long startedAt = System.currentTimeMillis();
         log.info("사용자 프로필 조회 시작: userId={}", userId);
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
         UserProfileResponse response = UserProfileResponse.of(user, profile);
         log.info("사용자 프로필 조회 완료: userId={}, elapsedMs={}", userId, System.currentTimeMillis() - startedAt);
@@ -54,7 +55,7 @@ public class UserProfileService {
     public UserDashboardResponse getDashboard(Long userId) {
         long startedAt = System.currentTimeMillis();
         log.info("사용자 대시보드 조회 시작: userId={}", userId);
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
 
         Long totalCount = recordReadService.countBloodSugarRecords(userId);
@@ -93,7 +94,7 @@ public class UserProfileService {
 
     public UserHomeCardResponse getHomeCard(Long userId) {
         long startedAt = System.currentTimeMillis();
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         HealthProfile profile = healthProfileRepository.findByUserId(userId).orElse(null);
 
         LocalDate birthDate = profile != null && profile.getBirthDate() != null ? profile.getBirthDate() : user.getBirthDate();
@@ -119,7 +120,7 @@ public class UserProfileService {
     public UserProfileResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
         long startedAt = System.currentTimeMillis();
         log.info("사용자 프로필 수정 시작: userId={}", userId);
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         HealthProfile profile = getOrCreateHealthProfile(user);
 
         if (request.getUsername() != null) {
@@ -310,11 +311,6 @@ public class UserProfileService {
             return null;
         }
         return BigDecimal.valueOf(value).setScale(1, RoundingMode.HALF_UP);
-    }
-
-    private User getUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     private HealthProfile getOrCreateHealthProfile(User user) {
