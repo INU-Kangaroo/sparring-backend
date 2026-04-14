@@ -8,6 +8,7 @@ import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class HealthProfileService {
 
     private final HealthProfileRepository healthProfileRepository;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
 
     /**
      * 건강 프로필 조회
@@ -70,8 +72,7 @@ public class HealthProfileService {
     public HealthProfile getOrCreateHealthProfile(Long userId) {
         return healthProfileRepository.findByUserId(userId)
                 .orElseGet(() -> {
-                    User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                    User user = userLookupService.getUserOrThrow(userId);
                     HealthProfile healthProfile = HealthProfile.builder()
                             .user(user)
                             .build();

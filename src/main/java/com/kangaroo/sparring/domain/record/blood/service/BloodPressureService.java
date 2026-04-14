@@ -12,6 +12,7 @@ import com.kangaroo.sparring.domain.record.blood.repository.BloodPressurePredict
 import com.kangaroo.sparring.domain.record.blood.support.MeasurementValidationSupport;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class BloodPressureService {
     private final BloodPressureLogRepository bloodPressureLogRepository;
     private final BloodPressurePredictionRepository bloodPressurePredictionRepository;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final Clock kstClock;
 
     @Transactional
@@ -47,7 +49,7 @@ public class BloodPressureService {
         log.info("혈압 측정 기록 등록 시작: userId={}, systolic={}, diastolic={}",
                 userId, request.getSystolic(), request.getDiastolic());
 
-        User user = findUserById(userId);
+        User user = userLookupService.getUserOrThrow(userId);
 
         // 비즈니스 검증
         validateBloodPressureValues(request);
@@ -241,8 +243,4 @@ public class BloodPressureService {
     /**
      * 사용자 조회
      */
-    private User findUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-    }
 }

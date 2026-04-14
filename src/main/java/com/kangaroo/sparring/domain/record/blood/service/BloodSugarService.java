@@ -12,6 +12,7 @@ import com.kangaroo.sparring.domain.record.blood.repository.BloodSugarPrediction
 import com.kangaroo.sparring.domain.record.blood.support.MeasurementValidationSupport;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -40,13 +41,14 @@ public class BloodSugarService {
     private final BloodSugarLogRepository bloodSugarLogRepository;
     private final BloodSugarPredictionRepository bloodSugarPredictionRepository;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final Clock kstClock;
 
     @Transactional
     public BloodSugarLogResponse createBloodSugarLog(Long userId, BloodSugarLogCreateRequest request) {
         log.info("혈당 측정 기록 등록 시작: userId={}, glucoseLevel={}", userId, request.getGlucoseLevel());
 
-        User user = findUserById(userId);
+        User user = userLookupService.getUserOrThrow(userId);
 
         validateGlucoseLevel(request.getGlucoseLevel());
 
@@ -197,10 +199,5 @@ public class BloodSugarService {
                 || glucoseLevel > HealthThresholds.BLOOD_SUGAR_MAX) {
             throw new CustomException(ErrorCode.INVALID_GLUCOSE_LEVEL);
         }
-    }
-
-    private User findUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }

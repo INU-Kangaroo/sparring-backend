@@ -1,10 +1,9 @@
-package com.kangaroo.sparring.domain.recommendation.service.client;
+package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.SupplementRecommendationResponse;
-import com.kangaroo.sparring.domain.recommendation.service.support.RecommendationJsonMappingSupport;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import com.kangaroo.sparring.global.client.GeminiApiClient;

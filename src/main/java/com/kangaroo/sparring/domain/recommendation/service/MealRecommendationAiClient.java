@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.recommendation.service.client;
+package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kangaroo.sparring.domain.recommendation.dto.ml.MealRecommendationMlRequest;

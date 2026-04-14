@@ -4,6 +4,7 @@ import com.kangaroo.sparring.domain.auth.dto.req.LoginRequest;
 import com.kangaroo.sparring.domain.auth.dto.res.AuthResponse;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import com.kangaroo.sparring.global.security.jwt.JwtUtil;
@@ -26,6 +27,7 @@ public class AuthTokenService {
             "$2a$10$7EqJtq98hPqEX7fNZaFWoOHiM8w6RzGQKxW0fvkYl9wH14r2raXI6";
 
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
@@ -68,8 +70,7 @@ public class AuthTokenService {
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User user = userLookupService.getUserOrThrow(userId);
         validateActiveUser(user);
 
         String newAccessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail());

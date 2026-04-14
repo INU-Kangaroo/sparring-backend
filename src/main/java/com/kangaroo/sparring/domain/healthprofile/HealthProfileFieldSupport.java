@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.healthprofile.support;
+package com.kangaroo.sparring.domain.healthprofile;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

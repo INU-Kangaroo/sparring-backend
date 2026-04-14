@@ -1,12 +1,12 @@
-package com.kangaroo.sparring.domain.recommendation.service.usecase;
+package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.kangaroo.sparring.domain.catalog.service.ExerciseCandidateService;
 import com.kangaroo.sparring.domain.catalog.entity.Exercise;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.service.HealthProfileService;
-import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
-import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import com.kangaroo.sparring.domain.recommendation.dto.req.ExerciseRecommendationRequest;
 import com.kangaroo.sparring.domain.recommendation.dto.res.CardiacExerciseResponse;
 import com.kangaroo.sparring.domain.recommendation.dto.res.ExerciseRecommendationResponse;
@@ -15,14 +15,11 @@ import com.kangaroo.sparring.domain.recommendation.entity.ExerciseRecommendation
 import com.kangaroo.sparring.domain.recommendation.entity.Recommendation;
 import com.kangaroo.sparring.domain.recommendation.repository.ExerciseRecommendationRepository;
 import com.kangaroo.sparring.domain.recommendation.repository.RecommendationRepository;
-import com.kangaroo.sparring.domain.recommendation.service.client.ExerciseRecommendationAiClient;
-import com.kangaroo.sparring.domain.recommendation.service.support.RecommendationJsonMappingSupport;
-import com.kangaroo.sparring.domain.recommendation.service.support.RecommendationPromptSupport;
-import com.kangaroo.sparring.domain.recommendation.service.support.RecommendationPromptTemplateService;
 import com.kangaroo.sparring.domain.recommendation.type.ExerciseType;
 import com.kangaroo.sparring.domain.recommendation.type.RecommendationType;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -49,12 +46,13 @@ public class ExerciseRecommendationService {
     private final RecommendationJsonMappingSupport jsonMappingSupport;
     private final ExerciseCandidateService exerciseCandidateService;
     private final UserRepository userRepository;
+    private final UserLookupService userLookupService;
     private final HealthProfileService healthProfileService;
     private final RecordReadService recordReadService;
     private final Clock kstClock;
 
     public ExerciseRecommendationResponse getExerciseRecommendations(Long userId, ExerciseRecommendationRequest request) {
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         LocalDateTime cacheThreshold = LocalDateTime.now(kstClock).minusHours(CACHE_HOURS);
         return recommendationRepository
                 .findCachedExerciseRecommendation(
@@ -78,7 +76,7 @@ public class ExerciseRecommendationService {
     }
 
     public ExerciseRecommendationResponse refreshExerciseRecommendations(Long userId, ExerciseRecommendationRequest request) {
-        User user = getUserOrThrow(userId);
+        User user = userLookupService.getUserOrThrow(userId);
         log.info("운동 추천 강제 새로고침 요청: userId={}, duration={}, intensity={}, location={}",
                 user.getId(), request.getDuration().name(), request.getIntensity().name(), request.getLocation().name());
         return generateNewExerciseRecommendations(user, request);
@@ -121,7 +119,7 @@ public class ExerciseRecommendationService {
                                        List<BloodPressureRecord> bloodPressures,
                                        ExerciseRecommendationRequest request,
                                        String candidatesText) {
-        String userHealthInfo = RecommendationPromptSupport.buildUserHealthInfo(healthProfile, bloodSugars, bloodPressures);
+        String userHealthInfo = promptTemplateService.buildUserHealthInfo(healthProfile, bloodSugars, bloodPressures);
         return promptTemplateService.renderExercisePrompt(Map.of(
                 "USER_HEALTH_INFO", userHealthInfo,
                 "DURATION", request.getDuration().getDescription(),
@@ -188,10 +186,5 @@ public class ExerciseRecommendationService {
                 .toList();
 
         return ExerciseRecommendationResponse.of(cardiacExercises, strengthExercises);
-    }
-
-    private User getUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }

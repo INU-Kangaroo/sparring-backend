@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.record.common.read;
+package com.kangaroo.sparring.domain.record.common;
 
 import com.kangaroo.sparring.domain.record.insulin.type.InsulinEventType;
 import lombok.Getter;

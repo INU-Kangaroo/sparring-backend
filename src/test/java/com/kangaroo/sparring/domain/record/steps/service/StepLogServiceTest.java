@@ -7,6 +7,7 @@ import com.kangaroo.sparring.domain.record.steps.repository.StepLogRepository;
 import com.kangaroo.sparring.domain.record.steps.type.StepSource;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,6 +33,8 @@ class StepLogServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private UserLookupService userLookupService;
+    @Mock
     private Clock kstClock;
     @InjectMocks
     private StepLogService stepLogService;
@@ -44,7 +47,7 @@ class StepLogServiceTest {
         StepLog existing = StepLog.create(user, stepDate, 3200, StepSource.APPLE_HEALTH, LocalDateTime.of(2026, 4, 8, 9, 0));
         StepSyncRequest request = new StepSyncRequest(stepDate, 5600, StepSource.APPLE_HEALTH);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userLookupService.getUserOrThrow(userId)).thenReturn(user);
         when(stepLogRepository.findByUserIdAndStepDateAndSourceAndIsDeletedFalse(userId, stepDate, StepSource.APPLE_HEALTH))
                 .thenReturn(Optional.of(existing));
         when(stepLogRepository.save(any(StepLog.class))).thenAnswer(invocation -> invocation.getArgument(0));

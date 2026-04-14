@@ -7,7 +7,7 @@ import com.kangaroo.sparring.domain.catalog.type.ExerciseImpactLevel;
 import com.kangaroo.sparring.domain.common.type.ExerciseLocation;
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.common.type.ExerciseIntensity;
-import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.BloodPressureRecord;
 import com.kangaroo.sparring.domain.survey.type.BloodPressureStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

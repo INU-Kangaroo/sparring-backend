@@ -2,7 +2,7 @@ package com.kangaroo.sparring.domain.user.service;
 
 import com.kangaroo.sparring.domain.healthprofile.entity.HealthProfile;
 import com.kangaroo.sparring.domain.healthprofile.repository.HealthProfileRepository;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import com.kangaroo.sparring.domain.survey.type.BloodPressureStatus;
 import com.kangaroo.sparring.domain.survey.type.BloodSugarStatus;
 import com.kangaroo.sparring.domain.survey.type.DrinkingFrequency;
@@ -10,6 +10,7 @@ import com.kangaroo.sparring.domain.survey.type.ExerciseFrequency;
 import com.kangaroo.sparring.domain.user.dto.res.UserHomeCardResponse;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.domain.user.repository.UserRepository;
+import com.kangaroo.sparring.domain.user.service.UserLookupService;
 import com.kangaroo.sparring.domain.user.type.Gender;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,8 @@ class UserProfileServiceHomeCardTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private UserLookupService userLookupService;
     @Mock
     private HealthProfileRepository healthProfileRepository;
     @Mock
@@ -63,7 +66,7 @@ class UserProfileServiceHomeCardTest {
                 .allergies("[\"견과류\"]")
                 .build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userLookupService.getUserOrThrow(userId)).thenReturn(user);
         when(healthProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
         UserHomeCardResponse response = userProfileService.getHomeCard(userId);

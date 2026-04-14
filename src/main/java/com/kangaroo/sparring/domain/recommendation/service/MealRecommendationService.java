@@ -1,4 +1,4 @@
-package com.kangaroo.sparring.domain.recommendation.service.usecase;
+package com.kangaroo.sparring.domain.recommendation.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,12 +9,10 @@ import com.kangaroo.sparring.domain.recommendation.dto.res.MealRecommendationRes
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendation;
 import com.kangaroo.sparring.domain.recommendation.entity.MealRecommendationItem;
 import com.kangaroo.sparring.domain.recommendation.repository.MealRecommendationRepository;
-import com.kangaroo.sparring.domain.recommendation.service.client.MealRecommendationAiClient;
-import com.kangaroo.sparring.domain.recommendation.service.support.MealRecommendationMlRequestFactory;
-import com.kangaroo.sparring.domain.record.common.read.BloodPressureRecord;
-import com.kangaroo.sparring.domain.record.common.read.BloodSugarRecord;
-import com.kangaroo.sparring.domain.record.common.read.FoodRecord;
-import com.kangaroo.sparring.domain.record.common.read.RecordReadService;
+import com.kangaroo.sparring.domain.record.common.BloodPressureRecord;
+import com.kangaroo.sparring.domain.record.common.BloodSugarRecord;
+import com.kangaroo.sparring.domain.record.common.FoodRecord;
+import com.kangaroo.sparring.domain.record.common.RecordReadService;
 import com.kangaroo.sparring.domain.user.entity.User;
 import com.kangaroo.sparring.global.exception.CustomException;
 import com.kangaroo.sparring.global.exception.ErrorCode;
@@ -27,8 +25,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -40,14 +36,12 @@ public class MealRecommendationService {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int RECENT_BLOOD_SUGAR_COUNT = 20;
     private static final int RECENT_BLOOD_PRESSURE_COUNT = 20;
-    private static final LocalTime BREAKFAST_END = LocalTime.of(11, 0);
-    private static final LocalTime LUNCH_END = LocalTime.of(15, 0);
-    private static final LocalTime DINNER_END = LocalTime.of(21, 0);
 
     private final RecordReadService recordReadService;
     private final MealRecommendationAiClient aiClient;
     private final MealRecommendationMlRequestFactory mlRequestFactory;
     private final MealRecommendationRepository mealRecommendationRepository;
+    private final MealRecommendationCachePolicy cachePolicy;
     private final Clock kstClock;
 
     /**
@@ -77,10 +71,10 @@ public class MealRecommendationService {
             LocalDateTime now,
             MealRecommendation cachedRecommendation
     ) {
-        CacheInvalidationReason invalidationReason = resolveCacheInvalidationReason(
+        MealRecommendationCachePolicy.InvalidationReason invalidationReason = cachePolicy.resolve(
                 user.getId(), profile, mealTime, today, now, cachedRecommendation
         );
-        if (invalidationReason != CacheInvalidationReason.NONE) {
+        if (invalidationReason != MealRecommendationCachePolicy.InvalidationReason.NONE) {
             logCacheInvalidation(invalidationReason, user, profile, mealTime, today, cachedRecommendation);
             return refresh(user, profile, mealTime);
         }
@@ -94,33 +88,8 @@ public class MealRecommendationService {
         }
     }
 
-    private CacheInvalidationReason resolveCacheInvalidationReason(
-            Long userId,
-            HealthProfile profile,
-            MealTime mealTime,
-            LocalDate today,
-            LocalDateTime now,
-            MealRecommendation cachedRecommendation
-    ) {
-        LocalDateTime recommendedAt = cachedRecommendation.getRecommendedAt();
-        LocalDate cachedDate = recommendedAt != null ? recommendedAt.toLocalDate() : null;
-        if (cachedDate == null || !cachedDate.isEqual(today)) {
-            return CacheInvalidationReason.EXPIRED_DATE;
-        }
-        if (isProfileChangedSinceRecommendation(profile, recommendedAt)) {
-            return CacheInvalidationReason.PROFILE_CHANGED;
-        }
-        if (hasFoodInputChangedAffectingMealType(userId, mealTime, recommendedAt)) {
-            return CacheInvalidationReason.FOOD_INPUT_CHANGED;
-        }
-        if (isRemainingMealType(mealTime, now) && hasVitalsInputChangedSince(userId, recommendedAt)) {
-            return CacheInvalidationReason.VITALS_INPUT_CHANGED;
-        }
-        return CacheInvalidationReason.NONE;
-    }
-
     private void logCacheInvalidation(
-            CacheInvalidationReason reason,
+            MealRecommendationCachePolicy.InvalidationReason reason,
             User user,
             HealthProfile profile,
             MealTime mealTime,
@@ -145,52 +114,16 @@ public class MealRecommendationService {
         }
     }
 
-    private boolean isProfileChangedSinceRecommendation(HealthProfile profile, LocalDateTime recommendedAt) {
-        return profile != null
-                && profile.getUpdatedAt() != null
-                && recommendedAt != null
-                && profile.getUpdatedAt().isAfter(recommendedAt);
-    }
-
-    private boolean hasFoodInputChangedAffectingMealType(Long userId, MealTime mealTime, LocalDateTime recommendedAt) {
-        List<MealTime> affectingMealTimes = getAffectingFoodMealTimes(mealTime);
-        return recordReadService.hasFoodInputChangedSince(userId, affectingMealTimes, recommendedAt);
-    }
-
-    private boolean hasVitalsInputChangedSince(Long userId, LocalDateTime recommendedAt) {
-        return recordReadService.hasBloodSugarInputChangedSince(userId, recommendedAt)
-                || recordReadService.hasBloodPressureInputChangedSince(userId, recommendedAt);
-    }
-
-    private boolean isRemainingMealType(MealTime targetMealType, LocalDateTime now) {
-        MealTime currentMealSlot = resolveCurrentMealSlot(now.toLocalTime());
-        return targetMealType.ordinal() >= currentMealSlot.ordinal();
-    }
-
-    private MealTime resolveCurrentMealSlot(LocalTime now) {
-        if (now.isBefore(BREAKFAST_END)) {
-            return MealTime.BREAKFAST;
-        }
-        if (now.isBefore(LUNCH_END)) {
-            return MealTime.LUNCH;
-        }
-        if (now.isBefore(DINNER_END)) {
-            return MealTime.DINNER;
-        }
-        return MealTime.SNACK;
-    }
-
-    private List<MealTime> getAffectingFoodMealTimes(MealTime targetMealType) {
-        return Arrays.stream(MealTime.values())
-                .filter(mealTime -> mealTime.ordinal() < targetMealType.ordinal())
-                .toList();
-    }
-
     /**
      * 식단 추천 새로고침 — FastAPI 호출 후 DB 저장
      */
     @Transactional
     public MealRecommendationResponse refresh(User user, HealthProfile profile, MealTime mealTime) {
+        return refresh(user, profile, mealTime, false);
+    }
+
+    @Transactional
+    public MealRecommendationResponse refresh(User user, HealthProfile profile, MealTime mealTime, boolean forceRefreshNonce) {
         long startedAt = System.currentTimeMillis();
         log.info("식단 추천 강제 새로고침/생성 요청: userId={}, mealType={}", user.getId(), mealTime.name());
         LocalDate today = LocalDate.now(kstClock);
@@ -201,19 +134,24 @@ public class MealRecommendationService {
 
         log.info("식단 추천 AI 요청 시작: userId={}, mealType={}, bloodSugarLogs={}, bloodPressureLogs={}, recentFoods={}",
                 user.getId(), mealTime.name(), recentBs.size(), recentBp.size(), recentFoods.size());
-        MealRecommendationMlRequest requestBody = mlRequestFactory.create(user, profile, mealTime, recentBs, recentBp, recentFoods);
+        MealRecommendationMlRequest requestBody = mlRequestFactory.create(
+                user, profile, mealTime, recentBs, recentBp, recentFoods, forceRefreshNonce
+        );
         MealRecommendationAiClient.AiRecommendResult result = aiClient.recommend(requestBody);
         log.info("식단 추천 AI 응답 수신: userId={}, mealType={}, cards={}",
                 user.getId(), mealTime.name(), result.cards() == null ? 0 : result.cards().size());
 
-        MealRecommendation saved = saveRecommendation(user, mealTime, result);
+        MealRecommendation saved = saveRecommendation(user, mealTime, requestBody, result);
         log.info("식단 추천 저장 완료: userId={}, mealType={}, recommendationId={}, elapsedMs={}",
                 user.getId(), mealTime.name(), saved.getId(), System.currentTimeMillis() - startedAt);
         return toResponse(saved);
     }
 
     private MealRecommendation saveRecommendation(
-            User user, MealTime mealTime, MealRecommendationAiClient.AiRecommendResult result
+            User user,
+            MealTime mealTime,
+            MealRecommendationMlRequest requestBody,
+            MealRecommendationAiClient.AiRecommendResult result
     ) {
         if (result.cards() == null || result.cards().isEmpty()) {
             throw new CustomException(ErrorCode.AI_RECOMMENDATION_FAILED, "추천 카드가 비어 있습니다.");
@@ -223,6 +161,7 @@ public class MealRecommendationService {
                 .user(user)
                 .mealType(mealTime.name())
                 .mealTargetKcal(BigDecimal.valueOf(result.mealTargetKcal()))
+                .refreshNonce(requestBody.refreshNonce())
                 .recommendedAt(LocalDateTime.now(kstClock))
                 .build();
 
@@ -300,13 +239,4 @@ public class MealRecommendationService {
                 .recommendations(cards)
                 .build();
     }
-
-    private enum CacheInvalidationReason {
-        NONE,
-        EXPIRED_DATE,
-        PROFILE_CHANGED,
-        FOOD_INPUT_CHANGED,
-        VITALS_INPUT_CHANGED
-    }
-
 }

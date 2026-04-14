@@ -31,6 +31,9 @@ public class MealRecommendation {
     @Column(name = "meal_target_kcal", precision = 8, scale = 2)
     private BigDecimal mealTargetKcal;
 
+    @Column(name = "refresh_nonce", length = 64)
+    private String refreshNonce;
+
     @Column(name = "recommended_at", nullable = false)
     private LocalDateTime recommendedAt;
 
